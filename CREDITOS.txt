@@ -1,0 +1,5 @@
+# Créditos do projeto Eclipse
+
+© 2026 Gustavo Henrique De Inocencio Ribeiro. Todos os direitos reservados sobre o código, a estrutura e o design original deste protótipo. A demonstração destina-se à avaliação do projeto.
+
+A marca Eclipse e os nomes, logotipos e fotografias de produtos de terceiros pertencem aos seus respectivos titulares.
