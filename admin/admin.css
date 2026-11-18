@@ -9,8 +9,8 @@
 .basket-variant[hidden]{display:none}
 .basket-list>.helper{padding:12px}
 
-#basket-count{margin:8px 0;font-size:1rem}
-#basket-selected:not(:has(.helper)){max-height:230px;overflow:auto;border:1px solid #d8d9d3;border-radius:10px;margin-bottom:12px}
+#basket-count,#promo-count{margin:0 0 8px;font-size:1rem}
+#basket-selected:not(:has(.helper)),#promo-selected:not(:has(.helper)){max-height:230px;overflow:auto;border:1px solid #d8d9d3;border-radius:10px;margin-bottom:12px}
 .basket-line{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px 10px}
 .basket-line .basket-check{flex:1 1 180px}
 .basket-change{max-width:100%;text-align:left}
@@ -64,12 +64,14 @@
 .combo-editor .dialog-header,.combo-editor .dialog-footer{position:static}
 .combo-editor .editor-body{min-height:0;overflow:auto}
 .combo-workspace{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:20px;align-items:start}
-.combo-workspace>section{min-width:0}
-.combo-editor .basket-list,.combo-editor #basket-selected:not(:has(.helper)){max-height:clamp(240px,52dvh,550px)}
+.combo-workspace>section{min-width:0;display:flex;flex-direction:column}
+.combo-workspace>section>h3{margin:0 0 8px;font-size:1rem;line-height:1.3}
+.combo-workspace>section>.field{margin-bottom:10px}
+.combo-editor .basket-list,.combo-editor #basket-selected:not(:has(.helper)),.combo-editor #promo-selected:not(:has(.helper)){max-height:clamp(240px,52dvh,550px)}
 @media(max-width:760px){
  #editor.combo-editor{width:100vw;height:100dvh;max-height:100dvh;margin:0}
  .combo-workspace{grid-template-columns:minmax(0,1fr);gap:10px}
- .combo-editor .basket-list,.combo-editor #basket-selected:not(:has(.helper)){max-height:42dvh}
+ .combo-editor .basket-list,.combo-editor #basket-selected:not(:has(.helper)),.combo-editor #promo-selected:not(:has(.helper)){max-height:42dvh}
 }
 
 .demo-credentials{display:grid;gap:6px;margin-top:14px}

@@ -394,6 +394,7 @@ function openPromotion(id=0) {
     <div id="promo-selected"></div>
    </section>
    <section aria-label="Catálogo">
+    <h3>Catálogo disponível</h3>
     <label class="field">Buscar produtos<input id="promo-search" type="search" placeholder="Nome, marca ou referência"></label>
     <div id="promo-list" class="basket-list" aria-label="Produtos disponíveis"></div>
    </section>
@@ -536,6 +537,7 @@ function openBasket(id=0) {
     <div id="basket-selected"></div>
    </section>
    <section aria-label="Catálogo">
+    <h3>Catálogo disponível</h3>
     <label class="field">Buscar produtos<input id="basket-search" type="search" placeholder="Nome, marca ou referência"></label>
     <div id="basket-list" class="basket-list" aria-label="Produtos disponíveis"></div>
    </section>
