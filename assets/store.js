@@ -537,9 +537,9 @@
     $('#ec-offer-grid').innerHTML='<p class="ec-loading">Selecionando ofertas…</p>';
     $('#ec-campaign-products').innerHTML='';
     try{
-      const [offerPool,catalogPool,promoData]=await Promise.all([selectionPool('offers',audience),selectionPool('all',audience),request('promotions').catch(()=>({promotions:[]}))]);
+      const [newPool,offerPool,catalogPool,promoData]=await Promise.all([selectionPool('new',audience),selectionPool('offers',audience),selectionPool('all',audience),request('promotions').catch(()=>({promotions:[]}))]);
       if(turn!==featureSequence)return;
-      const arrivals=randomSelection(offerPool,6,audience,previousPair(prefix+':arrivals'));
+      const arrivals=randomSelection(newPool.length?newPool:catalogPool.filter(p=>p.isNew&&!p.sale),6,audience,previousPair(prefix+':arrivals'));
       const offers=offerPool.filter(p=>audience?matchesPreference(p,audience):['homem','mulher'].some(group=>matchesPreference(p,group)))
         .sort((a,b)=>offerDate(b)-offerDate(a)||b.id-a.id).slice(0,6);
       const activePromos=promoData.promotions||[];

@@ -81,7 +81,7 @@ window.ECLIPSE_DEMO = { async request(path, options) {
     if(type==='promotions'||type==='combos')products=products.filter(p=>Boolean(p.basket)===(type==='combos'));
   }
   if(q.get('scope')==='regular') products=products.filter(p=>!p.sale);
-  if(q.get('scope')==='new') products=products.filter(p=>!p.basket&&Date.now()/1000-p.arrivedAt>=0&&Date.now()/1000-p.arrivedAt<30*86400);
+  if(q.get('scope')==='new') products=products.filter(p=>!p.basket&&!p.sale&&(p.isNew||(Date.now()/1000-p.arrivedAt>=0&&Date.now()/1000-p.arrivedAt<30*86400)));
   if(q.get('stock')==='1') products=products.filter(p=>p.available);
   if(q.get('scope')==='offers'){
     if(q.get('order')==='price')products.sort((a,b)=>a.price-b.price);
