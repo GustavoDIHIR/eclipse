@@ -301,7 +301,7 @@
     setMobileMenu(false);
     setMobileFilters(false);
     const [path,query]=(location.hash.slice(1)||'inicio').split('?'),q=new URLSearchParams(query||'');
-    state={view:path==='ofertas'?'offers':path==='lancamentos'?'new':path==='inicio'?'home':'catalog',audience:audiences.some(([s])=>s===q.get('publico'))?q.get('publico'):['crianca','adolescente'].includes(q.get('publico'))?'infantil':'',category:q.get('categoria')||'',offerType:q.get('tipo')==='combos'?'combos':'promotions',promotionId:Number(q.get('colecao'))||0,order:'recent',search:'',stock:false,page:1};
+    state={view:path==='ofertas'?'offers':path==='lancamentos'?'new':path==='inicio'?'home':'catalog',audience:audiences.some(([s])=>s===q.get('publico'))?q.get('publico'):q.get('publico')==='crianca'?'infantil':q.get('publico')==='adolescente'?'juvenil':'',category:q.get('categoria')||'',offerType:q.get('tipo')==='combos'?'combos':'promotions',promotionId:Number(q.get('colecao'))||0,order:'recent',search:'',stock:false,page:1};
     $('.ec-search input').value='';$('#ec-in-stock').checked=false;
     root.querySelectorAll('.ec-nav-dept[open]').forEach(d=>d.open=false);
     const home=state.view==='home';$('#ec-launches').hidden=!home;$('#ec-campaign').hidden=!home;$('#ec-offer-feature').hidden=!home;$('#ec-back-home').hidden=home;
