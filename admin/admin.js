@@ -619,7 +619,7 @@ function ordersView(){
    return `<tr>
     <td><span class="name">${esc(o.code)}</span><small>${esc(dt)} · ${(o.items||[]).length} item(ns)</small></td>
     <td>${esc(o.customerName||'Cliente sem cadastro')}<small>${esc([o.customerEmail,o.customerPhone].filter(Boolean).join(' · ')||'—')}</small></td>
-    <td>${o.checkoutMode==='site'?'Pago pelo site':'WhatsApp'}<small>${o.fulfilment==='retirada'?'Retirar na loja':'Entrega'} · ${esc(o.payment)}</small></td>
+    <td>${o.checkoutMode==='site'?`Pago pelo site · Mercado Pago${o.paymentId?` (${esc(o.paymentId)})`:''}`:'WhatsApp'}<small>${o.fulfilment==='retirada'?'Retirar na loja':'Entrega'} · ${esc(o.payment)}</small></td>
     <td><strong>${money(o.total||0)}</strong></td>
     <td><select class="order-status-select" data-order-status="${esc(o.code)}" aria-label="Status do pedido ${esc(o.code)}">${Object.entries(ORDER_STATUSES).map(([k,l])=>`<option value="${k}" ${o.status===k?'selected':''}>${esc(l)}</option>`).join('')}</select></td>
     <td><div class="row-actions">

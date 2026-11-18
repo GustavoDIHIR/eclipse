@@ -364,6 +364,9 @@
    const total=Math.round(items.reduce((n,i)=>n+Number(i.price||0)*Number(i.quantity||0),0)*100)/100;
    const order={
     id,code,checkoutMode,paidOnSite:checkoutMode==='site',
+    paymentProvider:checkoutMode==='site'?'mercadopago':'whatsapp',
+    paymentId:checkoutMode==='site'?'MP-'+String(id).padStart(6,'0'):'',
+    paymentStatus:checkoutMode==='site'?'approved':'pending',
     status:checkoutMode==='site'?'pago_separacao':'pendente',
     payment:String(body.payment||''),fulfilment:String(body.fulfilment||''),
     address:body.fulfilment==='entrega'?String(body.address||''):'',

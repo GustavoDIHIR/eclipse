@@ -53,6 +53,7 @@
       payment:order.payment,paymentLabel:payments[order.payment],fulfilment:order.fulfilment,
       address:String(order.address||'').trim().slice(0,500),checkoutMode,
       code:String(order.code||'').trim(),receiptUrl:String(order.receiptUrl||'').trim(),
+      paymentId:String(order.paymentId||'').trim(),
       customerName:String(order.customerName||'').trim(),customerPhone:String(order.customerPhone||'').trim()
     };
   }
@@ -64,7 +65,8 @@
       const clientLine = preferences.customerName ? `Cliente: ${preferences.customerName}${preferences.customerPhone ? ` · ${preferences.customerPhone}` : ''}\n` : '';
       const delivery = `Recebimento: ${preferences.fulfilment === 'retirada' ? 'Retirar na loja' : 'Entrega'}${preferences.fulfilment === 'entrega' ? `\nEndereço: ${preferences.address || 'A combinar no atendimento'}` : ''}`;
       const receiptLine = preferences.receiptUrl ? `\nComprovante: ${preferences.receiptUrl}` : '';
-      return `${head}\n\n${lines.join('\n\n')}\n\nTotal pago: ${money(quote.total)}\n\n${clientLine}Pagamento: Pago pelo site (${preferences.paymentLabel})\n${delivery}${receiptLine}\n\nPodem iniciar a separação e me avisar quando estiver pronto para retirada/envio?`;
+      const mpInfo = preferences.paymentId ? ` · ${preferences.paymentId}` : '';
+      return `${head}\n\n${lines.join('\n\n')}\n\nTotal pago: ${money(quote.total)}\n\n${clientLine}Pagamento: Pago pelo site · Mercado Pago (${preferences.paymentLabel}${mpInfo})\n${delivery}${receiptLine}\n\nPodem iniciar a separação e me avisar quando estiver pronto para retirada/envio?`;
     }
     const orderMeta = preferences?.code ? `Pedido: ${preferences.code}\n${preferences.customerName ? `Cliente: ${preferences.customerName}\n` : ''}${preferences.receiptUrl ? `Comprovante: ${preferences.receiptUrl}\n` : ''}` : '';
     const tail = preferences ? `${orderMeta}Pagamento escolhido: ${preferences.paymentLabel}\nRecebimento: ${preferences.fulfilment === 'retirada' ? 'Retirar na loja' : 'Entrega'}${preferences.fulfilment === 'entrega' ? `\nEndereço: ${preferences.address || 'A combinar no atendimento'}\nFrete: a confirmar, não incluído no total` : ''}\n\nPodem confirmar a disponibilidade e orientar o pagamento?` : 'Podem confirmar a disponibilidade, o pagamento e a entrega? Frete a combinar.';
@@ -233,7 +235,7 @@
     </footer>
     <dialog id="ec-welcome" class="ec-dialog ec-welcome" aria-labelledby="ec-welcome-title"><div class="ec-welcome-logo">${logo}</div><p class="ec-eyebrow">BEM-VINDO À ECLIPSE</p><h2 id="ec-welcome-title">Seu estilo começa<br>por aqui.</h2><p>Como podemos chamar você? Escolha uma preferência para descobrir peças que têm a sua cara.</p><form id="ec-profile-form"><label class="ec-field" for="ec-profile-name">Primeiro nome<input id="ec-profile-name" type="text" autocomplete="given-name" maxlength="60" required></label><fieldset class="ec-profile-choice"><legend>O que você quer explorar?</legend><label><input type="radio" name="stylePreference" value="homem" required> Moda masculina</label><label><input type="radio" name="stylePreference" value="mulher" required> Moda feminina</label></fieldset><label class="ec-consent"><input id="ec-profile-consent" type="checkbox" required><span>Concordo em salvar meu nome e minha preferência neste navegador para personalizar as sugestões. Posso alterar ou apagar esses dados a qualquer momento.</span></label><p class="ec-privacy-note">Nome e preferência são salvos apenas neste navegador. Não geram cadastro nem mensagens promocionais.</p><p id="ec-profile-error" role="alert"></p><button class="ec-button ec-dark" type="submit">DESCOBRIR MEU ESTILO ↗</button></form><button type="button" id="ec-profile-skip" class="ec-continue">Explorar sem personalizar</button><button type="button" id="ec-profile-clear" class="ec-clear-profile" hidden>Apagar minha personalização</button></dialog>
     <dialog id="ec-product" class="ec-dialog" aria-label="Detalhes do produto"><button class="ec-close" data-close aria-label="Fechar produto">×</button><div id="ec-product-content"></div></dialog>
-    <dialog id="ec-cart" class="ec-dialog ec-cart-dialog" aria-labelledby="ec-cart-heading"><div class="ec-cart-title"><div><p class="ec-eyebrow">SUAS ESCOLHAS</p><h2 id="ec-cart-heading">Seu carrinho<span>.</span></h2></div><button class="ec-close" data-close aria-label="Fechar carrinho">×</button></div><p id="ec-direct-note" class="ec-cart-note" hidden>Compra deste item. Os outros produtos do seu carrinho foram preservados.</p><div id="ec-cart-items"></div><div class="ec-cart-bottom"><p class="ec-total">Total dos produtos<strong id="ec-total"></strong></p><form id="ec-order-form"><fieldset class="ec-checkout-fieldset"><legend>Como deseja finalizar?</legend><label><input type="radio" name="checkoutMode" value="whatsapp" checked> Finalizar e enviar para o WhatsApp</label><label><input type="radio" name="checkoutMode" value="site"> Pagar pelo site e enviar para separação</label></fieldset><div class="ec-checkout-customer"><label class="ec-field" for="ec-customer-name">Seu nome<input id="ec-customer-name" type="text" maxlength="120" placeholder="Para identificar o pedido"></label><label class="ec-field" for="ec-customer-phone">Seu WhatsApp<input id="ec-customer-phone" type="tel" maxlength="32" placeholder="(12) 99999-9999"></label></div><p class="ec-cart-note" id="ec-checkout-account-hint"><button type="button" class="ec-text-link" id="ec-checkout-login-link">Entrar ou criar conta</button> para acompanhar seus pedidos e comprovantes na Área do cliente.</p><fieldset class="ec-checkout-fieldset"><legend>Como você quer receber?</legend><label><input type="radio" name="fulfilment" value="retirada"> Retirar na loja</label><label><input type="radio" name="fulfilment" value="entrega"> Entrega</label></fieldset><div id="ec-address-wrap" hidden><label class="ec-field" for="ec-address">Endereço de entrega <small>(opcional)</small></label><textarea id="ec-address" maxlength="500" rows="3" placeholder="Rua, número, bairro, cidade e CEP"></textarea><p class="ec-cart-note">O frete será confirmado pela equipe.</p></div><label class="ec-field" for="ec-payment">Forma de pagamento</label><select id="ec-payment" required><option value="">Selecione</option><option value="pix">Pix</option><option value="credito">Cartão de crédito</option><option value="debito">Cartão de débito</option><option value="dinheiro">Dinheiro</option></select><div id="ec-site-payment-box" class="ec-site-payment-box" hidden><strong>Pagamento pelo site</strong><p>Após confirmar, o comprovante fica vinculado ao seu pedido e é enviado junto no WhatsApp apenas para separação/envio. O pedido permanece pendente no ADM até finalizar a entrega ou retirada.</p></div><p class="ec-cart-note" id="ec-payment-note">A escolha será enviada à loja. O pagamento e a disponibilidade serão confirmados no atendimento.</p></form><p id="ec-checkout-error" role="alert"></p><label class="ec-field" id="ec-demo-message" hidden>Prévia da mensagem<textarea id="ec-demo-message-text" rows="7" readonly></textarea></label><button id="ec-checkout" class="ec-button ec-lime">${cfg.publicDemo&&!cfg.phone?'Simular mensagem do WhatsApp':'Continuar pelo WhatsApp ↗'}</button><div class="ec-checkout-ready-actions"><a id="ec-whatsapp-ready" class="ec-button ec-lime" target="_blank" rel="noopener noreferrer" hidden>Abrir WhatsApp e enviar ↗</a><button type="button" id="ec-receipt-ready" class="ec-button ec-outline" hidden>Ver comprovante ↗</button></div><button class="ec-continue" data-close>Continuar comprando</button></div></dialog>
+    <dialog id="ec-cart" class="ec-dialog ec-cart-dialog" aria-labelledby="ec-cart-heading"><div class="ec-cart-title"><div><p class="ec-eyebrow">SUAS ESCOLHAS</p><h2 id="ec-cart-heading">Seu carrinho<span>.</span></h2></div><button class="ec-close" data-close aria-label="Fechar carrinho">×</button></div><p id="ec-direct-note" class="ec-cart-note" hidden>Compra deste item. Os outros produtos do seu carrinho foram preservados.</p><div id="ec-cart-items"></div><div class="ec-cart-bottom"><p class="ec-total">Total dos produtos<strong id="ec-total"></strong></p><div id="ec-checkout-auth-gate" class="ec-site-payment-box" hidden><strong>Entre ou crie uma conta para comprar</strong><p>Para finalizar o pedido, salvar seu contato e gerar o comprovante na Área do cliente, entre na sua conta.</p><button type="button" class="ec-button ec-dark" id="ec-checkout-login-btn">Entrar ou criar conta ↗</button></div><form id="ec-order-form"><fieldset class="ec-checkout-fieldset"><legend>Como deseja finalizar?</legend><label><input type="radio" name="checkoutMode" value="whatsapp" checked> Finalizar e enviar para o WhatsApp</label><label><input type="radio" name="checkoutMode" value="site"> Pagar pelo site (Mercado Pago) e enviar para separação</label></fieldset><div class="ec-checkout-customer"><label class="ec-field" for="ec-customer-name">Seu nome<input id="ec-customer-name" type="text" maxlength="120" placeholder="Para identificar o pedido" required></label><label class="ec-field" for="ec-customer-phone">Seu WhatsApp<input id="ec-customer-phone" type="tel" maxlength="32" placeholder="(12) 99999-9999" required></label></div><p class="ec-cart-note" id="ec-checkout-account-hint"></p><fieldset class="ec-checkout-fieldset"><legend>Como você quer receber?</legend><label><input type="radio" name="fulfilment" value="retirada"> Retirar na loja</label><label><input type="radio" name="fulfilment" value="entrega"> Entrega</label></fieldset><div id="ec-address-wrap" hidden><label class="ec-field" for="ec-address">Endereço de entrega <small>(opcional)</small></label><textarea id="ec-address" maxlength="500" rows="3" placeholder="Rua, número, bairro, cidade e CEP"></textarea><p class="ec-cart-note">O frete será confirmado pela equipe.</p></div><label class="ec-field" for="ec-payment">Forma de pagamento</label><select id="ec-payment" required><option value="">Selecione</option><option value="pix">Pix</option><option value="credito">Cartão de crédito</option><option value="debito">Cartão de débito</option><option value="dinheiro">Dinheiro</option></select><div id="ec-site-payment-box" class="ec-site-payment-box" hidden><strong>Mercado Pago · Prévia de pagamento pelo site</strong><p>Integração preparada para Checkout Pro / Pix e Cartão do Mercado Pago. Ao confirmar, o pagamento é aprovado na prévia, o comprovante fica vinculado à venda e o pedido vai no WhatsApp apenas para separação/envio (pendente no ADM até finalizar a entrega).</p></div><p class="ec-cart-note" id="ec-payment-note">A escolha será enviada à loja. O pagamento e a disponibilidade serão confirmados no atendimento.</p></form><p id="ec-checkout-error" role="alert"></p><label class="ec-field" id="ec-demo-message" hidden>Prévia da mensagem<textarea id="ec-demo-message-text" rows="7" readonly></textarea></label><button id="ec-checkout" class="ec-button ec-lime">${cfg.publicDemo&&!cfg.phone?'Simular mensagem do WhatsApp':'Continuar pelo WhatsApp ↗'}</button><div class="ec-checkout-ready-actions"><a id="ec-whatsapp-ready" class="ec-button ec-lime" target="_blank" rel="noopener noreferrer" hidden>Abrir WhatsApp e enviar ↗</a><button type="button" id="ec-receipt-ready" class="ec-button ec-outline" hidden>Ver comprovante ↗</button></div><button class="ec-continue" data-close>Continuar comprando</button></div></dialog>
     <dialog id="ec-account-dialog" class="ec-dialog ec-account-dialog" aria-label="Minha conta"><button class="ec-close" data-close aria-label="Fechar conta">×</button><div id="ec-account-content"></div></dialog>
     <dialog id="ec-receipt-dialog" class="ec-dialog ec-receipt-dialog" aria-label="Comprovante do pedido"><button class="ec-close" data-close aria-label="Fechar comprovante">×</button><div id="ec-receipt-content"></div></dialog>
     <div id="ec-toast" role="status" class="ec-toast"></div>
@@ -265,15 +267,18 @@
     $('#ec-count').textContent=cart.reduce((n,i)=>n+i.quantity,0);
     const items=workingCart();$('#ec-direct-note').hidden=!directItems;
     $('#ec-cart-items').innerHTML=items.length?items.map((i,index)=>`<article class="ec-cart-item"><div>${imageFor(i)}</div><section><h3>${escape(i.name)}</h3><p>${escape(i.label)}</p><strong>${money(i.price)}</strong><div class="ec-qty"><button type="button" data-qty="${index}" data-delta="-1" aria-label="Diminuir quantidade de ${escape(i.name)}">−</button><span>${i.quantity}</span><button type="button" data-qty="${index}" data-delta="1" aria-label="Aumentar quantidade de ${escape(i.name)}">+</button></div></section><button type="button" data-remove="${index}" class="ec-remove" aria-label="Remover ${escape(i.name)}">×</button></article>`).join(''):'<div class="ec-empty"><h3>Seu próximo favorito está no catálogo.</h3><p>Adicione as peças que combinam com você.</p><button class="ec-outline" data-close>Continuar comprando</button></div>';
-    $('#ec-total').textContent=money(items.reduce((n,i)=>n+i.price*i.quantity,0));$('#ec-order-form').hidden=!items.length;$('#ec-checkout').disabled=!items.length;
+    $('#ec-total').textContent=money(items.reduce((n,i)=>n+i.price*i.quantity,0));
+    const canCheckout=Boolean(items.length&&customerUser);
+    $('#ec-checkout-auth-gate').hidden=!items.length||Boolean(customerUser);
+    $('#ec-order-form').hidden=!canCheckout;
+    $('#ec-checkout').hidden=!canCheckout;
+    $('#ec-checkout').disabled=!canCheckout;
     if(customerUser){
       if(!$('#ec-customer-name').value)$('#ec-customer-name').value=customerUser.fullName||'';
       if(!$('#ec-customer-phone').value)$('#ec-customer-phone').value=customerUser.phone||'';
       $('#ec-checkout-account-hint').innerHTML=`Conectado como <strong>${escape(customerUser.email)}</strong> · seus pedidos e comprovantes ficam salvos na sua conta.`;
-    }else{
-      $('#ec-checkout-account-hint').innerHTML='<button type="button" class="ec-text-link" id="ec-checkout-login-link">Entrar ou criar conta</button> para acompanhar seus pedidos e comprovantes na Área do cliente.';
     }
-    invalidateQuote();syncCheckoutMode();
+    invalidateQuote();if(canCheckout)syncCheckoutMode();
   }
   function readOrder(){
     return normalizeOrder({
@@ -287,8 +292,10 @@
   }
   let checkoutSequence=0;
   async function checkout(){
+    if(!customerUser){cDialog.close();openAccount();return;}
     const items=workingCart().map(i=>({...i}));let order;
     try{order=readOrder();}catch(error){$('#ec-checkout-error').textContent=error.message;return;}
+    if(!order.customerName||!order.customerPhone){$('#ec-checkout-error').textContent='Informe seu nome e número de WhatsApp para contato e comprovante.';return;}
     const turn=++checkoutSequence,signature=JSON.stringify({items,order});const button=$('#ec-checkout');button.disabled=true;button.textContent='Registrando pedido…';$('#ec-checkout-error').textContent='';
     try{
       const quote=await request('quote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:items.map(({id,variantId,quantity,basketChoices})=>({id,variantId,quantity,basketChoices}))})});
@@ -308,6 +315,7 @@
       if(createdOrder){
         order.code=createdOrder.code;
         order.receiptUrl=receiptUrlFor(createdOrder.code);
+        order.paymentId=createdOrder.paymentId||'';
         lastReceiptCode=createdOrder.code;
         $('#ec-receipt-ready').textContent=`Ver comprovante (${createdOrder.code}) ↗`;
         $('#ec-receipt-ready').hidden=false;
@@ -693,7 +701,7 @@
       return;
     }
     if(button.id==='ec-account-btn'){openAccount();return;}
-    if(button.id==='ec-checkout-login-link'){cDialog.close();openAccount();return;}
+    if(button.id==='ec-checkout-login-link'||button.id==='ec-checkout-login-btn'){cDialog.close();openAccount();return;}
     if(button.id==='ec-receipt-ready'&&lastReceiptCode){openReceipt(lastReceiptCode);return;}
     if(button.dataset.openReceipt){openReceipt(button.dataset.openReceipt);return;}
     if(button.dataset.accountTab){accountPanel=button.dataset.accountTab;if(accountPanel==='pedidos')loadAccountOrders().then(renderAccount);else renderAccount();return;}
@@ -759,9 +767,10 @@
     btn.textContent=customerUser?customerUser.fullName.split(' ')[0]:'Minha conta';
     btn.title=customerUser?`Área do cliente (${customerUser.email})`:'Entrar ou criar conta';
   }
-  async function refreshAccountSession(){
+  async function refreshAccountSession(initial=false){
     try{const res=await request('account/session');customerUser=res.user||null;}catch{customerUser=null;}
-    updateAccountHeader();renderCart();
+    updateAccountHeader();updateGreeting();renderCart();
+    if(initial&&!customerUser&&!location.hash.startsWith('#comprovante'))openAccount();
   }
   function orderWhatsAppHref(order){
     if(!/^[1-9][0-9]{9,14}$/.test(cfg.phone||''))return '';
@@ -908,7 +917,7 @@
           <small>${escape(dt)}</small>
         </div>
         <dl class="ec-receipt-meta">
-          <div><dt>Modalidade</dt><dd>${o.checkoutMode==='site'?'Pago pelo site (separação/envio)':'Pedido via WhatsApp'}</dd></div>
+          <div><dt>Modalidade</dt><dd>${o.checkoutMode==='site'?`Pago pelo site · Mercado Pago${o.paymentId?` (${escape(o.paymentId)})`:''}`:'Pedido via WhatsApp'}</dd></div>
           <div><dt>Pagamento</dt><dd>${escape(o.payment)}</dd></div>
           <div><dt>Recebimento</dt><dd>${o.fulfilment==='retirada'?'Retirar na loja':'Entrega'}${o.address?` — ${escape(o.address)}`:''}</dd></div>
           ${o.customerName?`<div><dt>Cliente</dt><dd>${escape(o.customerName)}${o.customerPhone?` · ${escape(o.customerPhone)}`:''}</dd></div>`:''}
@@ -974,5 +983,5 @@
   [pDialog,cDialog,aDialog,rDialog].forEach(dialog=>dialog.addEventListener('click',event=>{if(event.target===dialog){const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)dialog.close();}}));
   window.addEventListener('hashchange',applyRoute);
   categories=Object.entries(departments).flatMap(([audience,d])=>d.groups.flatMap(g=>g.items.map(i=>({...i,audience}))));
-  refreshAccountSession();renderCart();updateGreeting();applyRoute();if(!profile)openWelcome();
+  refreshAccountSession(true);renderCart();updateGreeting();applyRoute();
 })();
