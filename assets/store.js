@@ -541,11 +541,12 @@
       if(turn!==featureSequence)return;
       const arrivals=randomSelection(newPool.length?newPool:catalogPool.filter(p=>p.isNew&&!p.sale),6,audience,previousPair(prefix+':arrivals'));
       const offers=offerPool.filter(p=>audience?matchesPreference(p,audience):['homem','mulher'].some(group=>matchesPreference(p,group)))
-        .sort((a,b)=>offerDate(b)-offerDate(a)||b.id-a.id).slice(0,6);
+        .sort((a,b)=>discountRate(b)-discountRate(a)||offerDate(b)-offerDate(a)||b.id-a.id);
       const activePromos=promoData.promotions||[];
       rememberPair(prefix+':arrivals',arrivals);
       const promoProducts=activePromos.flatMap(p=>p.products||[]).filter(p=>audience?matchesPreference(p,audience):true);
-      const homeOffers=(promoProducts.length?promoProducts:offers).slice(0,6);
+      const seenOffer=new Set();
+      const homeOffers=[...promoProducts,...offers].filter(p=>!seenOffer.has(p.id)&&seenOffer.add(p.id)).slice(0,6);
       $('#ec-new-grid').innerHTML=arrivals.map(card).join('')||'<p class="ec-loading">Ofertas chegam em breve.</p>';
       $('#ec-offer-grid').innerHTML=homeOffers.map(card).join('')||'<p class="ec-loading">Ofertas chegam em breve.</p>';
       const campaignPool=catalogPool.filter(p=>!arrivals.some(n=>n.id===p.id));

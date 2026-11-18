@@ -145,7 +145,7 @@
    }
   }
   for(const p of records){
-   p.isNew=!p.basket&&Date.now()/1000-p.arrivedAt<30*86400;
+   p.isNew=!p.basket&&!p.sale&&(p.isNew===true||(Date.now()/1000-p.arrivedAt>=0&&Date.now()/1000-p.arrivedAt<30*86400));
    if(!p.basket)continue;
    p.basketOptions=p.basket.map(entry=>{
     const item=index.get(entry.id);
