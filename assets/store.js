@@ -437,15 +437,19 @@
     }catch(error){if(turn===productSequence)$('#ec-product-content').innerHTML=`<p class="ec-loading">${escape(error.message)}</p>`;}
   }
   function selectedColor(){const group=variantGroups(current).find(g=>/^(cor|color|colour)$/i.test(g.name));return group&&choices[group.name]?choices[group.name]:null;}
-  function showProductPhoto(index){
-    const images=galleryPhotos(current,shownPhotoColor);
-    if(!images.length)return;
-    photoIndex=(index+images.length)%images.length;
-    $('#ec-main-photo').innerHTML=imageFor({...current,image:images[photoIndex]});
+  function syncPhotoThumbs(){
     $('#ec-photo-thumbnails').querySelectorAll('[data-photo]').forEach((button,i)=>{
       button.classList.toggle('is-active',i===photoIndex);
       button.setAttribute('aria-pressed',String(i===photoIndex));
     });
+  }
+  function showProductPhoto(index,instant=false){
+    const images=galleryPhotos(current,shownPhotoColor);
+    if(!images.length)return;
+    photoIndex=(index+images.length)%images.length;
+    const main=$('#ec-main-photo');
+    if(main&&main.clientWidth)main.scrollTo({left:photoIndex*main.clientWidth,behavior:instant||reduceMotion.matches?'instant':'smooth'});
+    syncPhotoThumbs();
   }
   function renderProductPhotos(color){
     if(shownPhotoColor===color)return;
@@ -454,8 +458,42 @@
     const images=galleryPhotos(current,color);
     $('#ec-gallery-controls').hidden=images.length<2;
     $('#ec-photo-thumbnails').innerHTML=images.map((url,i)=>`<button type="button" data-photo="${i}" aria-label="Ver foto ${i+1}"><img src="${escape(url)}" alt="${escape(current.name)} — foto ${i+1}" loading="lazy"></button>`).join('');
-    if(images.length)showProductPhoto(0);
-    else $('#ec-main-photo').innerHTML=imageFor({...current,image:''});
+    const main=$('#ec-main-photo');
+    if(images.length){
+      main.innerHTML=images.map(url=>`<div class="ec-detail-slide">${imageFor({...current,image:url})}</div>`).join('');
+      let scrollTimer;
+      main.onscroll=()=>{
+        clearTimeout(scrollTimer);
+        scrollTimer=setTimeout(()=>{
+          if(!main.clientWidth)return;
+          const idx=Math.max(0,Math.min(images.length-1,Math.round(main.scrollLeft/main.clientWidth)));
+          if(idx!==photoIndex){photoIndex=idx;syncPhotoThumbs();}
+        },60);
+      };
+      if(images.length>1){
+        let startX=0,startScroll=0,dragging=false;
+        main.onpointerdown=event=>{
+          if(event.pointerType!=='mouse'||event.button!==0)return;
+          dragging=true;startX=event.clientX;startScroll=main.scrollLeft;
+          main.classList.add('is-dragging');main.setPointerCapture(event.pointerId);
+        };
+        main.onpointermove=event=>{if(dragging)main.scrollLeft=startScroll-(event.clientX-startX);};
+        const stopDrag=event=>{
+          if(!dragging)return;
+          dragging=false;main.classList.remove('is-dragging');
+          if(main.hasPointerCapture(event.pointerId))main.releasePointerCapture(event.pointerId);
+          const idx=main.clientWidth?Math.max(0,Math.min(images.length-1,Math.round(main.scrollLeft/main.clientWidth))):0;
+          showProductPhoto(idx);
+        };
+        main.onpointerup=stopDrag;main.onpointercancel=stopDrag;
+      }else{
+        main.onpointerdown=main.onpointermove=main.onpointerup=main.onpointercancel=null;
+      }
+      showProductPhoto(0,true);
+    }else{
+      main.innerHTML=`<div class="ec-detail-slide">${imageFor({...current,image:''})}</div>`;
+      main.onscroll=main.onpointerdown=main.onpointermove=main.onpointerup=main.onpointercancel=null;
+    }
   }
   function renderVariantControls(){
     $('#ec-variant-controls').innerHTML=variantGroups(current).map((g,index)=>`<fieldset class="ec-option-group"><legend>${escape(isSize(g.name)?'Tamanho (BR)':g.name)}${choices[g.name]?`: <strong>${escape(choices[g.name])}</strong>`:''}</legend><div class="ec-option-list">${g.values.map(value=>{const available=optionAvailable(current,choices,g.name,value);return `<button type="button" class="ec-option ${isSize(g.name)?'ec-size-circle':'ec-color-option'} ${choices[g.name]===value?'is-selected':''}" data-option-group="${index}" data-option-value="${escape(value)}" aria-pressed="${choices[g.name]===value}" ${available||!isSize(g.name)?'':'disabled'} aria-label="${escape(g.name+': '+value+(available?'':' — indisponível'))}">${escape(value)}</button>`;}).join('')}</div></fieldset>`).join('');
