@@ -636,6 +636,7 @@
     if(event.target.id==='ec-in-stock'){state.stock=event.target.checked;state.page=1;load();}
     if(event.target.closest('#ec-order-form')){checkoutSequence++;invalidateQuote();$('#ec-address-wrap').hidden=root.querySelector('input[name="fulfilment"]:checked')?.value!=='entrega';}
   });
+  $('#ec-whatsapp-ready').addEventListener('click',()=>{setTimeout(()=>{if(directItems)directItems=null;else{cart=[];save();}renderCart();cDialog.close();},0);});
   $('#ec-address').addEventListener('input',()=>{checkoutSequence++;invalidateQuote();});
   $('#ec-order-form').addEventListener('submit',event=>event.preventDefault());
   $('.ec-search').addEventListener('submit',event=>{event.preventDefault();state.search=$('.ec-search input').value.trim();state.page=1;load();$('#ec-catalog').scrollIntoView({behavior:reduceMotion.matches?'instant':'smooth'});});
