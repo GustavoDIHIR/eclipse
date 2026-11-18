@@ -4,7 +4,7 @@
  const sessionKey=key+':session';
  const copy=value=>JSON.parse(JSON.stringify(value));
  const defaults=()=>({products:copy(demoProducts),promotions:copy(typeof demoPromotions!=='undefined'?demoPromotions:[]),users:{admin:'admin'},settings:{
-  phone:'',storeAddress:'Rua Dr. Bernardino de Campos, 220 — Centro, Cachoeira Paulista/SP',
+  phone:'5512992004560',storeAddress:'Rua Dr. Bernardino de Campos, 220 — Centro, Cachoeira Paulista/SP',
   instagram:'https://www.instagram.com/lojaeclipsecp/',facebook:'https://www.facebook.com/eclipsecpoficial/'
  }});
  function read(){

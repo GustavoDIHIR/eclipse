@@ -211,7 +211,7 @@
       <a href="#inicio" class="ec-footer-brand" aria-label="Eclipse — início">${logo}</a>
       <a href="${mapsUrl}" class="ec-footer-address" target="_blank" rel="noopener noreferrer">${escape(storeAddress)} ↗</a>
       <div class="ec-footer-links">
-        ${cfg.publicDemo?'':`<a href="https://wa.me/${escape(cfg.phone)}" target="_blank" rel="noopener noreferrer">WhatsApp</a>`}
+        ${!cfg.phone?'':`<a href="https://wa.me/${escape(cfg.phone)}" target="_blank" rel="noopener noreferrer">WhatsApp</a>`}
         ${cfg.instagram!==''?`<a href="${escape(cfg.instagram||'https://www.instagram.com/lojaeclipsecp/')}" target="_blank" rel="noopener noreferrer">Instagram</a>`:''}
         ${cfg.facebook?`<a href="${escape(cfg.facebook)}" target="_blank" rel="noopener noreferrer">Facebook</a>`:''}
       </div>
