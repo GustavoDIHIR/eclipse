@@ -48,28 +48,12 @@
     const payments = {pix:'Pix',credito:'Cartão de crédito',debito:'Cartão de débito',dinheiro:'Dinheiro'};
     if (!payments[order?.payment]) throw Error('Selecione a forma de pagamento.');
     if (!['retirada','entrega'].includes(order?.fulfilment)) throw Error('Selecione retirada na loja ou entrega.');
-    const checkoutMode = order?.checkoutMode === 'site' ? 'site' : 'whatsapp';
-    return {
-      payment:order.payment,paymentLabel:payments[order.payment],fulfilment:order.fulfilment,
-      address:String(order.address||'').trim().slice(0,500),checkoutMode,
-      code:String(order.code||'').trim(),receiptUrl:String(order.receiptUrl||'').trim(),
-      paymentId:String(order.paymentId||'').trim(),
-      customerName:String(order.customerName||'').trim(),customerPhone:String(order.customerPhone||'').trim()
-    };
+    return {payment:order.payment,paymentLabel:payments[order.payment],fulfilment:order.fulfilment,address:String(order.address||'').trim().slice(0,500)};
   }
   function messageFor(quote, order) {
     const lines = quote.items.map(i => `${i.quantity}x ${i.name}${i.sku ? ` [${i.sku}]` : ''}${i.label ? ` — ${i.label}` : ''}\n${money(i.price)} cada · ${money(i.price * i.quantity)}`);
     const preferences = order ? normalizeOrder(order) : null;
-    if (preferences && preferences.checkoutMode === 'site') {
-      const head = `Olá, Eclipse! Pedido pago pelo site para separação/envio${preferences.code ? ` (${preferences.code})` : ''}:`;
-      const clientLine = preferences.customerName ? `Cliente: ${preferences.customerName}${preferences.customerPhone ? ` · ${preferences.customerPhone}` : ''}\n` : '';
-      const delivery = `Recebimento: ${preferences.fulfilment === 'retirada' ? 'Retirar na loja' : 'Entrega'}${preferences.fulfilment === 'entrega' ? `\nEndereço: ${preferences.address || 'A combinar no atendimento'}` : ''}`;
-      const receiptLine = preferences.receiptUrl ? `\nComprovante: ${preferences.receiptUrl}` : '';
-      const mpInfo = preferences.paymentId ? ` · ${preferences.paymentId}` : '';
-      return `${head}\n\n${lines.join('\n\n')}\n\nTotal pago: ${money(quote.total)}\n\n${clientLine}Pagamento: Pago pelo site · Mercado Pago (${preferences.paymentLabel}${mpInfo})\n${delivery}${receiptLine}\n\nPodem iniciar a separação e me avisar quando estiver pronto para retirada/envio?`;
-    }
-    const orderMeta = preferences?.code ? `Pedido: ${preferences.code}\n${preferences.customerName ? `Cliente: ${preferences.customerName}\n` : ''}${preferences.receiptUrl ? `Comprovante: ${preferences.receiptUrl}\n` : ''}` : '';
-    const tail = preferences ? `${orderMeta}Pagamento escolhido: ${preferences.paymentLabel}\nRecebimento: ${preferences.fulfilment === 'retirada' ? 'Retirar na loja' : 'Entrega'}${preferences.fulfilment === 'entrega' ? `\nEndereço: ${preferences.address || 'A combinar no atendimento'}\nFrete: a confirmar, não incluído no total` : ''}\n\nPodem confirmar a disponibilidade e orientar o pagamento?` : 'Podem confirmar a disponibilidade, o pagamento e a entrega? Frete a combinar.';
+    const tail = preferences ? `Pagamento escolhido: ${preferences.paymentLabel}\nRecebimento: ${preferences.fulfilment === 'retirada' ? 'Retirar na loja' : 'Entrega'}${preferences.fulfilment === 'entrega' ? `\nEndereço: ${preferences.address || 'A combinar no atendimento'}\nFrete: a confirmar, não incluído no total` : ''}\n\nPodem confirmar a disponibilidade e orientar o pagamento?` : 'Podem confirmar a disponibilidade, o pagamento e a entrega? Frete a combinar.';
     return `Olá, Eclipse! Tenho interesse nestes produtos:\n\n${lines.join('\n\n')}\n\nTotal dos produtos: ${money(quote.total)}\n\n${tail}`;
   }
   function normalizeProfile(input) {
@@ -215,7 +199,7 @@
          ${group.items.map(item=>`<a class="ec-mega-category" href="#catalogo?publico=${slug}&amp;categoria=${item.slug}">${escape(item.name)}</a>`).join('')}
         </div></details>`).join('')}</div>
       </div>
-     </details>`).join('')}</nav><div class="ec-header-actions"><a href="#lancamentos" class="ec-launch-nav">LANÇAMENTOS</a><a href="#ofertas" class="ec-offer-nav">OFERTAS</a><button type="button" id="ec-account-btn" class="ec-account-btn">Minha conta</button><button class="ec-bag ec-cart-open" aria-label="Abrir carrinho">${bag}<b id="ec-count">0</b></button></div></header>
+     </details>`).join('')}</nav><div class="ec-header-actions"><a href="#lancamentos" class="ec-launch-nav">LANÇAMENTOS</a><a href="#ofertas" class="ec-offer-nav">OFERTAS</a><button class="ec-bag ec-cart-open" aria-label="Abrir carrinho">${bag}<b id="ec-count">0</b></button></div></header>
     <main>
       <div class="ec-personal-bar"><p id="ec-greeting"></p><button type="button" id="ec-personalize">Personalizar minha experiência</button></div>
       <section id="ec-launches" class="ec-catalog ec-launches"><div class="ec-section-head"><div><p class="ec-eyebrow">NOVIDADES NA ECLIPSE</p><h1>ACABARAM DE CHEGAR<span>.</span></h1><p class="ec-section-copy">Novos favoritos para renovar seu estilo.</p></div><button class="ec-text-link" data-route="new">Ver todos os lançamentos ↗</button></div><p class="ec-mobile-swipe-hint">Deslize para ver mais peças ↔</p><div id="ec-new-grid" class="ec-grid"></div></section>
@@ -235,68 +219,26 @@
     </footer>
     <dialog id="ec-welcome" class="ec-dialog ec-welcome" aria-labelledby="ec-welcome-title"><div class="ec-welcome-logo">${logo}</div><p class="ec-eyebrow">BEM-VINDO À ECLIPSE</p><h2 id="ec-welcome-title">Seu estilo começa<br>por aqui.</h2><p>Como podemos chamar você? Escolha uma preferência para descobrir peças que têm a sua cara.</p><form id="ec-profile-form"><label class="ec-field" for="ec-profile-name">Primeiro nome<input id="ec-profile-name" type="text" autocomplete="given-name" maxlength="60" required></label><fieldset class="ec-profile-choice"><legend>O que você quer explorar?</legend><label><input type="radio" name="stylePreference" value="homem" required> Moda masculina</label><label><input type="radio" name="stylePreference" value="mulher" required> Moda feminina</label></fieldset><label class="ec-consent"><input id="ec-profile-consent" type="checkbox" required><span>Concordo em salvar meu nome e minha preferência neste navegador para personalizar as sugestões. Posso alterar ou apagar esses dados a qualquer momento.</span></label><p class="ec-privacy-note">Nome e preferência são salvos apenas neste navegador. Não geram cadastro nem mensagens promocionais.</p><p id="ec-profile-error" role="alert"></p><button class="ec-button ec-dark" type="submit">DESCOBRIR MEU ESTILO ↗</button></form><button type="button" id="ec-profile-skip" class="ec-continue">Explorar sem personalizar</button><button type="button" id="ec-profile-clear" class="ec-clear-profile" hidden>Apagar minha personalização</button></dialog>
     <dialog id="ec-product" class="ec-dialog" aria-label="Detalhes do produto"><button class="ec-close" data-close aria-label="Fechar produto">×</button><div id="ec-product-content"></div></dialog>
-    <dialog id="ec-cart" class="ec-dialog ec-cart-dialog" aria-labelledby="ec-cart-heading"><div class="ec-cart-title"><div><p class="ec-eyebrow">SUAS ESCOLHAS</p><h2 id="ec-cart-heading">Seu carrinho<span>.</span></h2></div><button class="ec-close" data-close aria-label="Fechar carrinho">×</button></div><p id="ec-direct-note" class="ec-cart-note" hidden>Compra deste item. Os outros produtos do seu carrinho foram preservados.</p><div id="ec-cart-items"></div><div class="ec-cart-bottom"><p class="ec-total">Total dos produtos<strong id="ec-total"></strong></p><div id="ec-checkout-auth-gate" class="ec-site-payment-box" hidden><strong>Entre ou crie uma conta para comprar</strong><p>Para finalizar o pedido, salvar seu contato e gerar o comprovante na Área do cliente, entre na sua conta.</p><button type="button" class="ec-button ec-dark" id="ec-checkout-login-btn">Entrar ou criar conta ↗</button></div><form id="ec-order-form"><fieldset class="ec-checkout-fieldset"><legend>Como deseja finalizar?</legend><label><input type="radio" name="checkoutMode" value="whatsapp" checked> Finalizar e enviar para o WhatsApp</label><label><input type="radio" name="checkoutMode" value="site"> Pagar pelo site (Mercado Pago) e enviar para separação</label></fieldset><div class="ec-checkout-customer"><label class="ec-field" for="ec-customer-name">Seu nome<input id="ec-customer-name" type="text" maxlength="120" placeholder="Para identificar o pedido" required></label><label class="ec-field" for="ec-customer-phone">Seu WhatsApp<input id="ec-customer-phone" type="tel" maxlength="32" placeholder="(12) 99999-9999" required></label></div><p class="ec-cart-note" id="ec-checkout-account-hint"></p><fieldset class="ec-checkout-fieldset"><legend>Como você quer receber?</legend><label><input type="radio" name="fulfilment" value="retirada"> Retirar na loja</label><label><input type="radio" name="fulfilment" value="entrega"> Entrega</label></fieldset><div id="ec-address-wrap" hidden><label class="ec-field" for="ec-address">Endereço de entrega <small>(opcional)</small></label><textarea id="ec-address" maxlength="500" rows="3" placeholder="Rua, número, bairro, cidade e CEP"></textarea><p class="ec-cart-note">O frete será confirmado pela equipe.</p></div><label class="ec-field" for="ec-payment">Forma de pagamento</label><select id="ec-payment" required><option value="">Selecione</option><option value="pix">Pix</option><option value="credito">Cartão de crédito</option><option value="debito">Cartão de débito</option><option value="dinheiro">Dinheiro</option></select><div id="ec-site-payment-box" class="ec-site-payment-box" hidden><strong>Mercado Pago · Prévia de pagamento pelo site</strong><p>Integração preparada para Checkout Pro / Pix e Cartão do Mercado Pago. Ao confirmar, o pagamento é aprovado na prévia, o comprovante fica vinculado à venda e o pedido vai no WhatsApp apenas para separação/envio (pendente no ADM até finalizar a entrega).</p></div><p class="ec-cart-note" id="ec-payment-note">A escolha será enviada à loja. O pagamento e a disponibilidade serão confirmados no atendimento.</p></form><p id="ec-checkout-error" role="alert"></p><label class="ec-field" id="ec-demo-message" hidden>Prévia da mensagem<textarea id="ec-demo-message-text" rows="7" readonly></textarea></label><button id="ec-checkout" class="ec-button ec-lime">${cfg.publicDemo&&!cfg.phone?'Simular mensagem do WhatsApp':'Continuar pelo WhatsApp ↗'}</button><div class="ec-checkout-ready-actions"><a id="ec-whatsapp-ready" class="ec-button ec-lime" target="_blank" rel="noopener noreferrer" hidden>Abrir WhatsApp e enviar ↗</a><button type="button" id="ec-receipt-ready" class="ec-button ec-outline" hidden>Ver comprovante ↗</button></div><button class="ec-continue" data-close>Continuar comprando</button></div></dialog>
-    <dialog id="ec-account-dialog" class="ec-dialog ec-account-dialog" aria-label="Minha conta"><button class="ec-close" data-close aria-label="Fechar conta">×</button><div id="ec-account-content"></div></dialog>
-    <dialog id="ec-receipt-dialog" class="ec-dialog ec-receipt-dialog" aria-label="Comprovante do pedido"><button class="ec-close" data-close aria-label="Fechar comprovante">×</button><div id="ec-receipt-content"></div></dialog>
-    <div id="ec-toast" role="status" class="ec-toast"></div>
+    <dialog id="ec-cart" class="ec-dialog ec-cart-dialog" aria-labelledby="ec-cart-heading"><div class="ec-cart-title"><div><p class="ec-eyebrow">SUAS ESCOLHAS</p><h2 id="ec-cart-heading">Seu carrinho<span>.</span></h2></div><button class="ec-close" data-close aria-label="Fechar carrinho">×</button></div><p id="ec-direct-note" class="ec-cart-note" hidden>Compra deste item. Os outros produtos do seu carrinho foram preservados.</p><div id="ec-cart-items"></div><div class="ec-cart-bottom"><p class="ec-total">Total dos produtos<strong id="ec-total"></strong></p><form id="ec-order-form"><fieldset class="ec-checkout-fieldset"><legend>Como você quer receber?</legend><label><input type="radio" name="fulfilment" value="retirada"> Retirar na loja</label><label><input type="radio" name="fulfilment" value="entrega"> Entrega</label></fieldset><div id="ec-address-wrap" hidden><label class="ec-field" for="ec-address">Endereço de entrega <small>(opcional)</small></label><textarea id="ec-address" maxlength="500" rows="3" placeholder="Rua, número, bairro, cidade e CEP"></textarea><p class="ec-cart-note">O frete será confirmado pela equipe.</p></div><label class="ec-field" for="ec-payment">Forma de pagamento</label><select id="ec-payment" required><option value="">Selecione</option><option value="pix">Pix</option><option value="credito">Cartão de crédito</option><option value="debito">Cartão de débito</option><option value="dinheiro">Dinheiro</option></select><p class="ec-cart-note">A escolha será enviada à loja. O pagamento e a disponibilidade serão confirmados no atendimento.</p></form><p id="ec-checkout-error" role="alert"></p><label class="ec-field" id="ec-demo-message" hidden>Prévia da mensagem<textarea id="ec-demo-message-text" rows="7" readonly></textarea></label><button id="ec-checkout" class="ec-button ec-lime">${cfg.publicDemo&&!cfg.phone?'Simular mensagem do WhatsApp':'Continuar pelo WhatsApp ↗'}</button><a id="ec-whatsapp-ready" class="ec-button ec-lime" target="_blank" rel="noopener noreferrer" hidden>Abrir WhatsApp e enviar ↗</a><button class="ec-continue" data-close>Continuar comprando</button></div></dialog><div id="ec-toast" role="status" class="ec-toast"></div>
   </div>`;
-  const $=s=>root.querySelector(s),pDialog=$('#ec-product'),cDialog=$('#ec-cart'),aDialog=$('#ec-account-dialog'),rDialog=$('#ec-receipt-dialog');
+  const $=s=>root.querySelector(s),pDialog=$('#ec-product'),cDialog=$('#ec-cart');
   function toast(text){$('#ec-toast').textContent=text;$('#ec-toast').classList.add('is-on');clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('#ec-toast').classList.remove('is-on'),3000);}
   async function request(path,options){if(cfg.demo)return window.ECLIPSE_DEMO.request(path,options);const response=await fetch(cfg.api+path,options);const data=await response.json();if(!response.ok)throw Error(data.message||'Não foi possível carregar. Tente novamente.');return data;}
-  let customerUser=null,lastReceiptCode='';
-  const ORDER_STATUS_LABELS={pendente:'Pendente',pago_separacao:'Pago · Aguardando separação',em_separacao:'Em separação',pronto_retirada:'Pronto para retirada',enviado:'Enviado',finalizado:'Finalizado'};
-  const orderStatusLabel=s=>ORDER_STATUS_LABELS[s]||'Pendente';
-  const receiptUrlFor=code=>`${location.origin}${location.pathname}#comprovante?codigo=${encodeURIComponent(code)}`;
-  function invalidateQuote(){$('#ec-demo-message').hidden=true;$('#ec-whatsapp-ready').hidden=true;$('#ec-whatsapp-ready').removeAttribute('href');$('#ec-receipt-ready').hidden=true;$('#ec-checkout').hidden=false;$('#ec-checkout-error').textContent='';}
+  function invalidateQuote(){$('#ec-demo-message').hidden=true;$('#ec-whatsapp-ready').hidden=true;$('#ec-whatsapp-ready').removeAttribute('href');$('#ec-checkout').hidden=false;$('#ec-checkout-error').textContent='';}
   function save(){try{localStorage.setItem(cartStorageKey,JSON.stringify(cart));}catch{}renderCart();}
   const workingCart=()=>directItems||cart;
-  function syncCheckoutMode(){
-    const mode=root.querySelector('input[name="checkoutMode"]:checked')?.value==='site'?'site':'whatsapp';
-    const isSite=mode==='site';
-    $('#ec-site-payment-box').hidden=!isSite;
-    const pay=$('#ec-payment');
-    const cashOpt=pay.querySelector('option[value="dinheiro"]');
-    if(cashOpt){cashOpt.hidden=isSite;if(isSite&&pay.value==='dinheiro')pay.value='';}
-    $('#ec-payment-note').textContent=isSite
-      ?'Pagamento simulado no site. O pedido vai para o WhatsApp apenas para separação/envio e fica pendente no ADM até finalizar a entrega.'
-      :'A escolha será enviada à loja. O pagamento e a disponibilidade serão confirmados no atendimento.';
-    const btn=$('#ec-checkout');
-    if(!btn.disabled)btn.textContent=isSite?'Confirmar pagamento e enviar para separação ↗':(cfg.publicDemo&&!cfg.phone?'Simular mensagem do WhatsApp':'Finalizar e enviar no WhatsApp ↗');
-  }
   function renderCart(){
     $('#ec-count').textContent=cart.reduce((n,i)=>n+i.quantity,0);
     const items=workingCart();$('#ec-direct-note').hidden=!directItems;
     $('#ec-cart-items').innerHTML=items.length?items.map((i,index)=>`<article class="ec-cart-item"><div>${imageFor(i)}</div><section><h3>${escape(i.name)}</h3><p>${escape(i.label)}</p><strong>${money(i.price)}</strong><div class="ec-qty"><button type="button" data-qty="${index}" data-delta="-1" aria-label="Diminuir quantidade de ${escape(i.name)}">−</button><span>${i.quantity}</span><button type="button" data-qty="${index}" data-delta="1" aria-label="Aumentar quantidade de ${escape(i.name)}">+</button></div></section><button type="button" data-remove="${index}" class="ec-remove" aria-label="Remover ${escape(i.name)}">×</button></article>`).join(''):'<div class="ec-empty"><h3>Seu próximo favorito está no catálogo.</h3><p>Adicione as peças que combinam com você.</p><button class="ec-outline" data-close>Continuar comprando</button></div>';
-    $('#ec-total').textContent=money(items.reduce((n,i)=>n+i.price*i.quantity,0));
-    const canCheckout=Boolean(items.length&&customerUser);
-    $('#ec-checkout-auth-gate').hidden=!items.length||Boolean(customerUser);
-    $('#ec-order-form').hidden=!canCheckout;
-    $('#ec-checkout').hidden=!canCheckout;
-    $('#ec-checkout').disabled=!canCheckout;
-    if(customerUser){
-      if(!$('#ec-customer-name').value)$('#ec-customer-name').value=customerUser.fullName||'';
-      if(!$('#ec-customer-phone').value)$('#ec-customer-phone').value=customerUser.phone||'';
-      $('#ec-checkout-account-hint').innerHTML=`Conectado como <strong>${escape(customerUser.email)}</strong> · seus pedidos e comprovantes ficam salvos na sua conta.`;
-    }
-    invalidateQuote();if(canCheckout)syncCheckoutMode();
+    $('#ec-total').textContent=money(items.reduce((n,i)=>n+i.price*i.quantity,0));$('#ec-order-form').hidden=!items.length;$('#ec-checkout').disabled=!items.length;invalidateQuote();
   }
-  function readOrder(){
-    return normalizeOrder({
-      payment:$('#ec-payment').value,
-      fulfilment:root.querySelector('input[name="fulfilment"]:checked')?.value,
-      address:$('#ec-address').value,
-      checkoutMode:root.querySelector('input[name="checkoutMode"]:checked')?.value==='site'?'site':'whatsapp',
-      customerName:$('#ec-customer-name').value,
-      customerPhone:$('#ec-customer-phone').value
-    });
-  }
+  function readOrder(){return normalizeOrder({payment:$('#ec-payment').value,fulfilment:root.querySelector('input[name="fulfilment"]:checked')?.value,address:$('#ec-address').value});}
   let checkoutSequence=0;
   async function checkout(){
-    if(!customerUser){cDialog.close();openAccount();return;}
     const items=workingCart().map(i=>({...i}));let order;
     try{order=readOrder();}catch(error){$('#ec-checkout-error').textContent=error.message;return;}
-    if(!order.customerName||!order.customerPhone){$('#ec-checkout-error').textContent='Informe seu nome e número de WhatsApp para contato e comprovante.';return;}
-    const turn=++checkoutSequence,signature=JSON.stringify({items,order});const button=$('#ec-checkout');button.disabled=true;button.textContent='Registrando pedido…';$('#ec-checkout-error').textContent='';
+    const turn=++checkoutSequence,signature=JSON.stringify({items,order});const button=$('#ec-checkout');button.disabled=true;button.textContent='Conferindo sua seleção…';$('#ec-checkout-error').textContent='';
     try{
       const quote=await request('quote',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:items.map(({id,variantId,quantity,basketChoices})=>({id,variantId,quantity,basketChoices}))})});
       if(turn!==checkoutSequence||JSON.stringify({items:workingCart(),order:readOrder()})!==signature)return;
@@ -304,36 +246,18 @@
       const changed=quote.items.some(i=>Math.abs((items.find(o=>key(o)===key(i))?.price??-1)-i.price)>.005);
       const updated=quote.items.map(i=>({...i,image:items.find(o=>key(o)===key(i))?.image||''}));
       if(directItems)directItems=updated;else cart=updated;save();
-      let createdOrder=null;
-      try{
-        const res=await request('orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-          items:updated,payment:order.payment,fulfilment:order.fulfilment,address:order.address,
-          checkoutMode:order.checkoutMode,customerName:order.customerName,customerPhone:order.customerPhone
-        })});
-        createdOrder=res.order||null;
-      }catch{}
-      if(createdOrder){
-        order.code=createdOrder.code;
-        order.receiptUrl=receiptUrlFor(createdOrder.code);
-        order.paymentId=createdOrder.paymentId||'';
-        lastReceiptCode=createdOrder.code;
-        $('#ec-receipt-ready').textContent=`Ver comprovante (${createdOrder.code}) ↗`;
-        $('#ec-receipt-ready').hidden=false;
-      }
       const text=(cfg.demo?'TESTE DO SITE ECLIPSE — demonstração, sem compra real.\n\n':'')+messageFor(quote,order);
       if(cfg.publicDemo&&!/^[1-9][0-9]{9,14}$/.test(quote.phone)){
         $('#ec-demo-message-text').value=text;
         $('#ec-demo-message').hidden=false;
         button.hidden=true;
-        $('#ec-checkout-error').textContent=createdOrder
-          ?`Pedido ${createdOrder.code} registrado (${orderStatusLabel(createdOrder.status)}). Mensagem pronta para envio.`
-          :'Mensagem simulada. Nenhum pedido foi enviado.';
+        $('#ec-checkout-error').textContent='Mensagem simulada. Nenhum pedido foi enviado.';
         return;
       }
       const ready=$('#ec-whatsapp-ready');ready.href=`https://wa.me/${quote.phone}?text=${encodeURIComponent(text)}`;ready.hidden=false;button.hidden=true;
-      if(cfg.publicDemo)$('#ec-checkout-error').textContent=`Pedido ${createdOrder?.code||''} registrado! Abra o WhatsApp para enviar${order.checkoutMode==='site'?' para separação/envio':''}.`;
-      else $('#ec-checkout-error').textContent=changed?'Os preços foram atualizados. Confira o total antes de enviar.':'Pedido registrado! Envie a mensagem no WhatsApp.';
-    }catch(error){$('#ec-checkout-error').textContent=error.message;}finally{button.disabled=!workingCart().length;syncCheckoutMode();}
+      if(cfg.publicDemo)$('#ec-checkout-error').textContent='Confira a mensagem de teste e abra o WhatsApp para enviá-la ao número configurado.';
+      else $('#ec-checkout-error').textContent=changed?'Os preços foram atualizados. Confira o total antes de enviar.':'Confira sua lista e envie a mensagem no WhatsApp.';
+    }catch(error){$('#ec-checkout-error').textContent=error.message;}finally{button.disabled=!workingCart().length;button.textContent=cfg.publicDemo&&!cfg.phone?'Simular mensagem do WhatsApp':'Continuar pelo WhatsApp ↗';}
   }
   function activeAudience(){return state.audience;}
   function renderCategories(){
@@ -378,8 +302,6 @@
     setMobileMenu(false);
     setMobileFilters(false);
     const [path,query]=(location.hash.slice(1)||'inicio').split('?'),q=new URLSearchParams(query||'');
-    if(path==='comprovante'&&q.get('codigo')){openReceipt(q.get('codigo'));return;}
-    if(path==='conta'){openAccount();return;}
     state={view:path==='ofertas'?'offers':path==='lancamentos'?'new':path==='inicio'?'home':'catalog',audience:audiences.some(([s])=>s===q.get('publico'))?q.get('publico'):['crianca','adolescente'].includes(q.get('publico'))?'infantil':'',category:q.get('categoria')||'',offerType:q.get('tipo')==='combos'?'combos':'promotions',promotionId:Number(q.get('colecao'))||0,order:'discount',search:'',stock:false,page:1};
     $('.ec-search input').value='';$('#ec-in-stock').checked=false;
     root.querySelectorAll('.ec-nav-dept[open]').forEach(d=>d.open=false);
@@ -700,11 +622,6 @@
       showProductPhoto(photoIndex+Number(button.dataset.galleryStep));
       return;
     }
-    if(button.id==='ec-account-btn'){openAccount();return;}
-    if(button.id==='ec-checkout-login-link'||button.id==='ec-checkout-login-btn'){cDialog.close();openAccount();return;}
-    if(button.id==='ec-receipt-ready'&&lastReceiptCode){openReceipt(lastReceiptCode);return;}
-    if(button.dataset.openReceipt){openReceipt(button.dataset.openReceipt);return;}
-    if(button.dataset.accountTab){accountPanel=button.dataset.accountTab;if(accountPanel==='pedidos')loadAccountOrders().then(renderAccount);else renderAccount();return;}
     if(button.hasAttribute('data-route')){route(button.dataset.route,button.dataset.audience||'',button.dataset.category||'');return;}
     if(button.classList.contains('ec-cart-open')){directItems=null;renderCart();cDialog.showModal();animateIn(cDialog,10);}
     if(button.classList.contains('ec-product-open'))openProduct(Number(button.dataset.id));
@@ -754,186 +671,10 @@
     }
     if(event.target.id==='ec-offer-order'){state.order=event.target.value;state.page=1;load();}
     if(event.target.id==='ec-in-stock'){state.stock=event.target.checked;state.page=1;load();}
-    if(event.target.closest('#ec-order-form')){checkoutSequence++;invalidateQuote();$('#ec-address-wrap').hidden=root.querySelector('input[name="fulfilment"]:checked')?.value!=='entrega';if(event.target.name==='checkoutMode')syncCheckoutMode();}
+    if(event.target.closest('#ec-order-form')){checkoutSequence++;invalidateQuote();$('#ec-address-wrap').hidden=root.querySelector('input[name="fulfilment"]:checked')?.value!=='entrega';}
   });
-  $('#ec-customer-name').addEventListener('input',()=>{checkoutSequence++;invalidateQuote();});
-  $('#ec-customer-phone').addEventListener('input',()=>{checkoutSequence++;invalidateQuote();});
   $('#ec-address').addEventListener('input',()=>{checkoutSequence++;invalidateQuote();});
   $('#ec-order-form').addEventListener('submit',event=>event.preventDefault());
-  let accountCreating=false,accountPanel='principal',accountOrders=[];
-  function updateAccountHeader(){
-    const btn=$('#ec-account-btn');
-    if(!btn)return;
-    btn.textContent=customerUser?customerUser.fullName.split(' ')[0]:'Minha conta';
-    btn.title=customerUser?`Área do cliente (${customerUser.email})`:'Entrar ou criar conta';
-  }
-  async function refreshAccountSession(initial=false){
-    try{const res=await request('account/session');customerUser=res.user||null;}catch{customerUser=null;}
-    updateAccountHeader();updateGreeting();renderCart();
-    if(initial&&!customerUser&&!location.hash.startsWith('#comprovante'))openAccount();
-  }
-  function orderWhatsAppHref(order){
-    if(!/^[1-9][0-9]{9,14}$/.test(cfg.phone||''))return '';
-    const link=receiptUrlFor(order.code);
-    const text=`Olá, Eclipse! Gostaria de acompanhar meu pedido ${order.code} (${orderStatusLabel(order.status)}).\nComprovante: ${link}`;
-    return `https://wa.me/${cfg.phone}?text=${encodeURIComponent(text)}`;
-  }
-  function renderOrderCard(o){
-    const dt=o.createdAt?new Date(o.createdAt*1000).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'}):'';
-    const wa=orderWhatsAppHref(o);
-    return `<article class="ec-order-card">
-      <div class="ec-order-card-head">
-        <div><strong>Pedido ${escape(o.code)}</strong><small>${escape(dt)} · ${o.checkoutMode==='site'?'Pago pelo site':'Pedido via WhatsApp'}</small></div>
-        <span class="ec-status-pill ec-status-${escape(o.status)}">${escape(orderStatusLabel(o.status))}</span>
-      </div>
-      <p class="ec-order-meta">${o.fulfilment==='retirada'?'Retirar na loja':'Entrega'}${o.address?` · ${escape(o.address)}`:''} · <strong>${money(o.total)}</strong></p>
-      <div class="ec-order-actions">
-        <button type="button" class="ec-outline" data-open-receipt="${escape(o.code)}">Ver comprovante ↗</button>
-        ${wa?`<a class="ec-text-link" href="${wa}" target="_blank" rel="noopener noreferrer">Acompanhar no WhatsApp ↗</a>`:''}
-      </div>
-    </article>`;
-  }
-  function renderAccount(){
-    const box=$('#ec-account-content');
-    if(!customerUser){
-      box.innerHTML=`<div class="ec-account-access">
-        <h2 id="ec-account-form-title">${accountCreating?'Criar conta':'Entrar na conta'}</h2>
-        <p>${accountCreating?'Crie sua conta com e-mail e senha para acompanhar seus pedidos e comprovantes.':'Entre com seu e-mail e senha para acessar sua Área do cliente.'}</p>
-        <form id="ec-account-form">
-          <label class="ec-field">E-mail<input name="email" type="email" autocomplete="username" maxlength="254" required></label>
-          ${accountCreating?`<label class="ec-field">Nome completo<input name="fullName" autocomplete="name" maxlength="120" required></label>
-          <label class="ec-field">Telefone para contato<input name="phone" type="tel" autocomplete="tel" maxlength="32" required></label>`:''}
-          <label class="ec-field">Senha<span class="ec-password-wrap"><input name="password" type="password" autocomplete="${accountCreating?'new-password':'current-password'}" minlength="8" maxlength="128" required><button type="button" id="ec-account-toggle-pw" aria-label="Mostrar senha" aria-pressed="false">👁</button></span></label>
-          ${accountCreating?'<p class="ec-cart-note">Use pelo menos 8 caracteres.</p>':''}
-          <p id="ec-account-error" role="alert"></p>
-          <button type="submit" class="ec-button ec-dark">${accountCreating?'Criar conta ↗':'Entrar ↗'}</button>
-        </form>
-        <button type="button" id="ec-account-switch" class="ec-text-link">${accountCreating?'Já tenho conta · Entrar':'Criar conta'}</button>
-      </div>`;
-      $('#ec-account-toggle-pw').onclick=()=>{
-        const input=$('#ec-account-form input[name="password"]');
-        const show=input.type==='password';
-        input.type=show?'text':'password';
-        $('#ec-account-toggle-pw').setAttribute('aria-pressed',String(show));
-      };
-      $('#ec-account-switch').onclick=()=>{accountCreating=!accountCreating;renderAccount();};
-      $('#ec-account-form').onsubmit=async event=>{
-        event.preventDefault();
-        const fd=new FormData(event.target);
-        const payload=Object.fromEntries(fd.entries());
-        $('#ec-account-error').textContent='';
-        try{
-          const res=await request(accountCreating?'account/register':'account/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-          customerUser=res.user;updateAccountHeader();renderCart();accountPanel='principal';await loadAccountOrders();renderAccount();
-        }catch(err){$('#ec-account-error').textContent=err.message;}
-      };
-      return;
-    }
-    box.innerHTML=`<div class="ec-account-client">
-      <div class="ec-account-heading">
-        <div><h2>Área do cliente</h2><p>${escape(customerUser.email)}</p></div>
-        <button type="button" id="ec-account-logout" class="ec-outline">Sair da conta</button>
-      </div>
-      <nav class="ec-account-nav" aria-label="Menu da conta">
-        ${[['principal','Principal'],['dados','Meus dados'],['pedidos','Meus pedidos'],['codigo','Consultar por código']].map(([k,l])=>`<button type="button" data-account-tab="${k}" aria-current="${accountPanel===k?'page':'false'}">${l}</button>`).join('')}
-      </nav>
-      <section class="ec-account-panel" ${accountPanel==='principal'?'':'hidden'}>
-        <h3>Bem-vindo, ${escape(customerUser.fullName.split(' ')[0])}</h3>
-        <div class="ec-account-overview">
-          <article><h4>Seus dados</h4><p>${escape(customerUser.fullName)}<br>${escape(customerUser.phone)}</p><button type="button" class="ec-text-link" data-account-tab="dados">Conferir meus dados →</button></article>
-          <article><h4>Seus pedidos</h4><p>${accountOrders.length?`${accountOrders.length} pedido(s) registrado(s).`:'Consulte seus pedidos e comprovantes.'}</p><button type="button" class="ec-text-link" data-account-tab="pedidos">Acompanhar pedidos →</button></article>
-          <article><h4>Tem um código?</h4><p>Busque qualquer pedido pelo código (ex.: EC-0001) para abrir o comprovante.</p><button type="button" class="ec-text-link" data-account-tab="codigo">Consultar pedido →</button></article>
-        </div>
-      </section>
-      <section class="ec-account-panel" ${accountPanel==='dados'?'':'hidden'}>
-        <h3>Meus dados</h3>
-        <form id="ec-account-profile-form">
-          <label class="ec-field">Nome completo<input name="fullName" maxlength="120" required value="${escape(customerUser.fullName)}"></label>
-          <label class="ec-field">Telefone para contato<input name="phone" type="tel" maxlength="32" required value="${escape(customerUser.phone)}"></label>
-          <p id="ec-account-profile-status" role="status"></p>
-          <button type="submit" class="ec-button ec-dark">Salvar dados</button>
-        </form>
-      </section>
-      <section class="ec-account-panel" ${accountPanel==='pedidos'?'':'hidden'}>
-        <h3>Meus pedidos</h3>
-        <div id="ec-account-orders-list">${accountOrders.length?accountOrders.map(renderOrderCard).join(''):'<p class="ec-cart-note">Você ainda não possui pedidos vinculados a esta conta.</p>'}</div>
-      </section>
-      <section class="ec-account-panel" ${accountPanel==='codigo'?'':'hidden'}>
-        <h3>Consultar por código</h3>
-        <form id="ec-account-lookup-form" class="ec-lookup-row">
-          <input name="code" placeholder="Ex.: EC-0001" maxlength="20" required>
-          <button type="submit" class="ec-button ec-dark">Consultar</button>
-        </form>
-        <p id="ec-account-lookup-status" role="alert"></p>
-        <div id="ec-account-lookup-output"></div>
-      </section>
-    </div>`;
-    $('#ec-account-logout').onclick=async()=>{await request('account/logout',{method:'POST'}).catch(()=>{});customerUser=null;accountOrders=[];updateAccountHeader();renderCart();renderAccount();};
-    const profForm=$('#ec-account-profile-form');
-    if(profForm)profForm.onsubmit=async event=>{
-      event.preventDefault();
-      const fd=new FormData(profForm);
-      try{
-        const res=await request('account/profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(Object.fromEntries(fd.entries()))});
-        customerUser=res.user;updateAccountHeader();$('#ec-account-profile-status').textContent='Dados atualizados.';
-      }catch(err){$('#ec-account-profile-status').textContent=err.message;}
-    };
-    const lookupForm=$('#ec-account-lookup-form');
-    if(lookupForm)lookupForm.onsubmit=async event=>{
-      event.preventDefault();
-      const code=new FormData(lookupForm).get('code').trim().toUpperCase();
-      $('#ec-account-lookup-status').textContent='';$('#ec-account-lookup-output').innerHTML='';
-      try{
-        const res=await request('orders/'+encodeURIComponent(code));
-        $('#ec-account-lookup-output').innerHTML=renderOrderCard(res.order);
-      }catch(err){$('#ec-account-lookup-status').textContent=err.message;}
-    };
-  }
-  async function loadAccountOrders(){
-    if(!customerUser){accountOrders=[];return;}
-    try{const res=await request('orders');accountOrders=res.orders||[];}catch{accountOrders=[];}
-  }
-  async function openAccount(tab='principal'){
-    accountPanel=tab;
-    await loadAccountOrders();
-    renderAccount();
-    if(!aDialog.open){aDialog.showModal();animateIn(aDialog,10);}
-  }
-  async function openReceipt(code){
-    const clean=String(code||'').trim().toUpperCase();
-    if(!clean)return;
-    $('#ec-receipt-content').innerHTML='<p class="ec-loading">Carregando comprovante…</p>';
-    if(!rDialog.open){rDialog.showModal();animateIn(rDialog,10);}
-    try{
-      const res=await request('orders/'+encodeURIComponent(clean));
-      const o=res.order;
-      const dt=o.createdAt?new Date(o.createdAt*1000).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'}):'';
-      const wa=orderWhatsAppHref(o);
-      $('#ec-receipt-content').innerHTML=`<div class="ec-receipt-box">
-        <p class="ec-eyebrow">COMPROVANTE DO PEDIDO</p>
-        <h2>Pedido ${escape(o.code)}</h2>
-        <div class="ec-receipt-status-row">
-          <span class="ec-status-pill ec-status-${escape(o.status)}">${escape(orderStatusLabel(o.status))}</span>
-          <small>${escape(dt)}</small>
-        </div>
-        <dl class="ec-receipt-meta">
-          <div><dt>Modalidade</dt><dd>${o.checkoutMode==='site'?`Pago pelo site · Mercado Pago${o.paymentId?` (${escape(o.paymentId)})`:''}`:'Pedido via WhatsApp'}</dd></div>
-          <div><dt>Pagamento</dt><dd>${escape(o.payment)}</dd></div>
-          <div><dt>Recebimento</dt><dd>${o.fulfilment==='retirada'?'Retirar na loja':'Entrega'}${o.address?` — ${escape(o.address)}`:''}</dd></div>
-          ${o.customerName?`<div><dt>Cliente</dt><dd>${escape(o.customerName)}${o.customerPhone?` · ${escape(o.customerPhone)}`:''}</dd></div>`:''}
-        </dl>
-        <ul class="ec-receipt-items">${(o.items||[]).map(i=>`<li><span>${i.quantity}x ${escape(i.name)}${i.label?` (${escape(i.label)})`:''}</span><strong>${money(i.price*i.quantity)}</strong></li>`).join('')}</ul>
-        <p class="ec-receipt-total"><span>Total</span><strong>${money(o.total)}</strong></p>
-        <div class="ec-receipt-actions">
-          <button type="button" class="ec-button ec-dark" id="ec-print-receipt">Imprimir / Salvar PDF</button>
-          ${wa?`<a class="ec-button ec-lime" href="${wa}" target="_blank" rel="noopener noreferrer">Acompanhar no WhatsApp ↗</a>`:''}
-        </div>
-      </div>`;
-      $('#ec-print-receipt').onclick=()=>window.print();
-    }catch(err){
-      $('#ec-receipt-content').innerHTML=`<p class="ec-loading">${escape(err.message)}</p>`;
-    }
-  }
   $('.ec-search').addEventListener('submit',event=>{event.preventDefault();state.search=$('.ec-search input').value.trim();state.page=1;load();$('#ec-catalog').scrollIntoView({behavior:reduceMotion.matches?'instant':'smooth'});});
   root.querySelectorAll('.ec-nav-dept').forEach(d=>d.addEventListener('toggle',event=>{if(event.target===d&&d.open)root.querySelectorAll('.ec-nav-dept').forEach(other=>{if(other!==d)other.open=false;});}));
   root.addEventListener('keydown',event=>{if(event.key==='Escape')root.querySelectorAll('.ec-nav-dept').forEach(d=>d.open=false);});
@@ -980,8 +721,8 @@
   });
   mobileLayout.addEventListener('change',()=>setMobileMenu(false));
   root.addEventListener('error',event=>{if(event.target.tagName==='IMG'&&event.target.nextElementSibling?.classList.contains('ec-photo-fallback')){event.target.hidden=true;event.target.nextElementSibling.hidden=false;}},true);
-  [pDialog,cDialog,aDialog,rDialog].forEach(dialog=>dialog.addEventListener('click',event=>{if(event.target===dialog){const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)dialog.close();}}));
+  [pDialog,cDialog].forEach(dialog=>dialog.addEventListener('click',event=>{if(event.target===dialog){const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)dialog.close();}}));
   window.addEventListener('hashchange',applyRoute);
   categories=Object.entries(departments).flatMap(([audience,d])=>d.groups.flatMap(g=>g.items.map(i=>({...i,audience}))));
-  refreshAccountSession(true);renderCart();updateGreeting();applyRoute();
+  renderCart();updateGreeting();applyRoute();if(!profile)openWelcome();
 })();

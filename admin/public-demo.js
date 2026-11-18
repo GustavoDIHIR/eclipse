@@ -2,9 +2,8 @@
  'use strict';
  const key='eclipse-public-admin-v1';
  const sessionKey=key+':session';
- const customerSessionKey='eclipse-demo-customer-session-v1';
  const copy=value=>JSON.parse(JSON.stringify(value));
- const defaults=()=>({products:copy(demoProducts),promotions:copy(typeof demoPromotions!=='undefined'?demoPromotions:[]),customers:{},orders:[],lastOrderId:0,users:{admin:'admin'},settings:{
+ const defaults=()=>({products:copy(demoProducts),promotions:copy(typeof demoPromotions!=='undefined'?demoPromotions:[]),users:{admin:'admin'},settings:{
   phone:'',storeAddress:'Rua Dr. Bernardino de Campos, 220 — Centro, Cachoeira Paulista/SP',
   instagram:'https://www.instagram.com/lojaeclipsecp/',facebook:'https://www.facebook.com/eclipsecpoficial/'
  }});
@@ -12,8 +11,6 @@
   try{
    const state=JSON.parse(localStorage.getItem(key))||defaults();
    if(!Array.isArray(state.promotions))state.promotions=copy(typeof demoPromotions!=='undefined'?demoPromotions:[]);
-   if(!state.customers||typeof state.customers!=='object')state.customers={};
-   if(!Array.isArray(state.orders))state.orders=[];
    return state;
   }catch{return defaults();}
  }
@@ -270,17 +267,6 @@
    state.lastPromotionId=Math.max(state.lastPromotionId||0,id);save(state);
    return enrichedPromotions(state,false).find(p=>p.id===id);
   }
-  if(path==='orders'&&method==='GET')return {orders:(state.orders||[]).slice().sort((a,b)=>b.id-a.id)};
-  if(path.startsWith('orders/')&&method==='PATCH'){
-   const code=path.split('/')[1].trim().toUpperCase();
-   const idx=(state.orders||[]).findIndex(o=>o.code===code);
-   if(idx<0)throw Error('Pedido não encontrado.');
-   const allowed=['pendente','pago_separacao','em_separacao','pronto_retirada','enviado','finalizado'];
-   if(!allowed.includes(body.status))throw Error('Status inválido.');
-   state.orders[idx]={...state.orders[idx],status:body.status,updatedAt:Math.floor(Date.now()/1000)};
-   save(state);
-   return {order:state.orders[idx]};
-  }
   if(path==='products'||path.startsWith('products/')){
    const id=method==='POST'?Math.max(state.lastProductId||0,...state.products.map(p=>p.id))+1:Number(path.split('/')[1]);
    const old=state.products.find(p=>p.id===id);
@@ -302,91 +288,5 @@
   }
   throw Error('Ação indisponível na demonstração.');
  }
- function currentCustomer(state){
-  try{
-   const email=sessionStorage.getItem(customerSessionKey)||localStorage.getItem(customerSessionKey)||'';
-   const cust=email&&state.customers?.[email];
-   return cust?{email:cust.email,fullName:cust.fullName,phone:cust.phone}:null;
-  }catch{return null;}
- }
- function setCustomerSession(email){
-  try{
-   if(email){sessionStorage.setItem(customerSessionKey,email);localStorage.setItem(customerSessionKey,email);}
-   else{sessionStorage.removeItem(customerSessionKey);localStorage.removeItem(customerSessionKey);}
-  }catch{}
- }
- async function publicRequest(path,options={}){
-  const method=(options.method||'GET').toUpperCase();
-  const body=options.body?JSON.parse(options.body):{};
-  const state=read();
-  if(path==='account/session'&&method==='GET')return {user:currentCustomer(state)};
-  if(path==='account/register'&&method==='POST'){
-   const email=String(body.email||'').trim().toLowerCase(),fullName=String(body.fullName||'').trim(),phone=String(body.phone||'').trim(),password=String(body.password||'');
-   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email))throw Error('Informe um e-mail válido.');
-   if(!fullName||fullName.length>120)throw Error('Informe seu nome completo.');
-   if(!phone||phone.length>32)throw Error('Informe um telefone para contato.');
-   if(password.length<8)throw Error('A senha precisa ter pelo menos 8 caracteres.');
-   if(state.customers[email])throw Error('Já existe uma conta cadastrada com este e-mail.');
-   state.customers[email]={email,fullName,phone,passwordHash:await digest(email+':'+password),createdAt:Math.floor(Date.now()/1000)};
-   save(state);setCustomerSession(email);
-   return {user:{email,fullName,phone}};
-  }
-  if(path==='account/login'&&method==='POST'){
-   const email=String(body.email||'').trim().toLowerCase(),password=String(body.password||'');
-   const cust=state.customers[email];
-   if(!cust||cust.passwordHash!==await digest(email+':'+password))throw Error('E-mail ou senha incorretos.');
-   setCustomerSession(email);
-   return {user:{email:cust.email,fullName:cust.fullName,phone:cust.phone}};
-  }
-  if(path==='account/logout'&&method==='POST'){setCustomerSession('');return {ok:true};}
-  if(path==='account/profile'&&method==='POST'){
-   const cust=currentCustomer(state);
-   if(!cust)throw Error('Entre na sua conta para atualizar os dados.');
-   const fullName=String(body.fullName||'').trim(),phone=String(body.phone||'').trim();
-   if(!fullName||!phone)throw Error('Informe nome completo e telefone válidos.');
-   state.customers[cust.email]={...state.customers[cust.email],fullName,phone};
-   save(state);
-   return {user:{email:cust.email,fullName,phone}};
-  }
-  if(path==='orders'&&method==='GET'){
-   const cust=currentCustomer(state);
-   if(!cust)throw Error('Entre na sua conta para acompanhar seus pedidos.');
-   return {orders:(state.orders||[]).filter(o=>o.customerEmail===cust.email).sort((a,b)=>b.id-a.id)};
-  }
-  if(path==='orders'&&method==='POST'){
-   const cust=currentCustomer(state);
-   const items=Array.isArray(body.items)?body.items:[];
-   if(!items.length)throw Error('Adicione itens ao pedido.');
-   const checkoutMode=body.checkoutMode==='site'?'site':'whatsapp';
-   const id=(state.lastOrderId||0)+1;
-   const code='EC-'+String(id).padStart(4,'0');
-   const now=Math.floor(Date.now()/1000);
-   const total=Math.round(items.reduce((n,i)=>n+Number(i.price||0)*Number(i.quantity||0),0)*100)/100;
-   const order={
-    id,code,checkoutMode,paidOnSite:checkoutMode==='site',
-    paymentProvider:checkoutMode==='site'?'mercadopago':'whatsapp',
-    paymentId:checkoutMode==='site'?'MP-'+String(id).padStart(6,'0'):'',
-    paymentStatus:checkoutMode==='site'?'approved':'pending',
-    status:checkoutMode==='site'?'pago_separacao':'pendente',
-    payment:String(body.payment||''),fulfilment:String(body.fulfilment||''),
-    address:body.fulfilment==='entrega'?String(body.address||''):'',
-    customerName:String(body.customerName||cust?.fullName||'').trim(),
-    customerPhone:String(body.customerPhone||cust?.phone||'').trim(),
-    customerEmail:cust?cust.email:String(body.customerEmail||'').trim().toLowerCase(),
-    items,total,createdAt:now,updatedAt:now
-   };
-   state.lastOrderId=id;
-   state.orders.push(order);
-   save(state);
-   return {order};
-  }
-  if(path.startsWith('orders/')&&method==='GET'){
-   const code=path.split('/')[1].trim().toUpperCase();
-   const order=(state.orders||[]).find(o=>o.code===code);
-   if(!order)throw Error('Pedido não encontrado.');
-   return {order};
-  }
-  throw Error('Ação indisponível.');
- }
- window.ECLIPSE_PUBLIC_ADMIN={request,publicRequest,products:()=>catalog(read()).filter(p=>p.published!==false),promotions:()=>enrichedPromotions(read(),true),settings:()=>read().settings,defaultLogin:()=>read().users.admin==='admin'};
+ window.ECLIPSE_PUBLIC_ADMIN={request,products:()=>catalog(read()).filter(p=>p.published!==false),promotions:()=>enrichedPromotions(read(),true),settings:()=>read().settings,defaultLogin:()=>read().users.admin==='admin'};
 })();

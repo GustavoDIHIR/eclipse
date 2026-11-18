@@ -70,17 +70,6 @@ window.ECLIPSE_DEMO = { async request(path, options) {
     if (!promo) throw Error('Promoção indisponível.');
     return promo;
   }
-  if (path.startsWith('account/') || path === 'orders' || path.startsWith('orders/')) {
-    if (window.ECLIPSE_PUBLIC_ADMIN?.publicRequest) return window.ECLIPSE_PUBLIC_ADMIN.publicRequest(path, options);
-    if (path === 'account/session') return {user: null};
-    if (path === 'orders' && options?.method === 'POST') {
-      const body = JSON.parse(options.body || '{}');
-      const mode = body.checkoutMode === 'site' ? 'site' : 'whatsapp';
-      const now = Math.floor(Date.now() / 1000);
-      return {order: {id: 1, code: 'EC-0001', checkoutMode: mode, paidOnSite: mode === 'site', status: mode === 'site' ? 'pago_separacao' : 'pendente', ...body, createdAt: now, updatedAt: now}};
-    }
-    throw Error('Recurso disponível no modo interativo.');
-  }
   const q=new URLSearchParams(path.split('?')[1]);
   const categoryKeys=(q.get('category')||'').split(',').filter(Boolean);
   const promoId=Number(q.get('promotionId'))||0;
