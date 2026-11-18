@@ -154,6 +154,10 @@
 #promo-item-dialog .promo-item-presets{display:flex;flex-wrap:wrap;gap:6px}
 #promo-item-dialog .promo-preset{border:1px solid var(--line);background:#f7f9f4;padding:6px 10px;font-size:12px;font-weight:700;min-height:34px;border-radius:4px}
 #promo-item-dialog .promo-preset:hover{background:#edf2e7;border-color:#9bb08a}
+.stock-toolbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 12px;margin-bottom:12px}
+.stock-quick-actions,.stock-color-actions{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.stock-toolbar .promo-preset,.stock-color-actions .promo-preset{border:1px solid var(--line);background:#f7f9f4;padding:5px 10px;font-size:12px;font-weight:700;min-height:32px;border-radius:4px;cursor:pointer}
+.stock-toolbar .promo-preset:hover,.stock-color-actions .promo-preset:hover{background:#edf2e7;border-color:#9bb08a}
 #promo-item-dialog .promo-item-row{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end}
 #promo-item-dialog .promo-item-row .field{margin:0}
 #promo-item-dialog .promo-item-preview{background:#eef4e4;border:1px solid #d8e4c7;padding:8px 12px;min-height:44px;display:grid;align-content:center;text-align:right;font-size:12px;min-width:110px}

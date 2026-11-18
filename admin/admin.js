@@ -272,25 +272,81 @@ function openStock(id) {
   if(!colors.has(color))colors.set(color,[]);
   colors.get(color).push(variant);
  }
+ const normalize=value=>value.normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase();
  actionDialog('Disponibilidade · '+product.name,
-  '<p class="helper">Clique no tamanho para alternar. Verde = disponível. Cinza = indisponível.</p>'+
+  '<p class="helper">Clique no tamanho para alternar ou use os atalhos por cor e no total. Verde = disponível. Cinza = indisponível.</p>'+
+  `<div class="stock-toolbar">
+    <strong id="stock-total-count" role="status"></strong>
+    <div class="stock-quick-actions">
+     <button type="button" class="promo-preset" data-stock-all="true">Todos disponíveis</button>
+     <button type="button" class="promo-preset" data-stock-all="false">Todos indisponíveis</button>
+     ${colors.size>1?'<button type="button" class="promo-preset" data-stock-toggle-all="open">Expandir cores</button>':''}
+    </div>
+   </div>`+
+  (colors.size>1?'<label class="field">Buscar cor<input id="stock-color-search" type="search" placeholder="Ex.: Preto, Azul…"></label>':'')+
   [...colors].map(([color,items])=>`
-   <details class="product-section" ${colors.size===1?'open':''}>
+   <details class="product-section" data-stock-color="${esc(normalize(color))}" ${colors.size===1?'open':''}>
     <summary>${esc(color)} · <span data-stock-count>${items.filter(v=>v.available).length}/${items.length} disponíveis</span></summary>
+    <div class="stock-color-actions">
+     <button type="button" class="promo-preset" data-stock-group="true">Disponibilizar cor</button>
+     <button type="button" class="promo-preset" data-stock-group="false">Esgotar cor</button>
+    </div>
     <div class="stock-sizes" role="group" aria-label="Tamanhos da cor ${esc(color)}">
      ${items.sort(bySize).map(v=>`<button type="button" class="stock-size" data-status="${v.id}" aria-pressed="${v.available}" aria-label="Tamanho ${esc(v.attributes.Tamanho)}">${esc(v.attributes.Tamanho)}</button>`).join('')}
     </div>
    </details>`).join(''),()=>patchProduct(id,{availability:Object.fromEntries(
     [...$('#editor-body').querySelectorAll('[data-status]')].map(button=>[button.dataset.status,button.getAttribute('aria-pressed')==='true'])
    )}));
+ const updateCounts=()=>{
+  const sections=[...$('#editor-body').querySelectorAll('.product-section')];
+  let totalAll=0,totalAvail=0;
+  for(const group of sections){
+   const all=group.querySelectorAll('.stock-size').length;
+   const available=group.querySelectorAll('.stock-size[aria-pressed=true]').length;
+   totalAll+=all;totalAvail+=available;
+   group.querySelector('[data-stock-count]').textContent=available+'/'+all+' disponíveis';
+  }
+  $('#stock-total-count').textContent=`Total: ${totalAvail}/${totalAll} disponíveis`;
+ };
+ updateCounts();
+ const colorSearch=$('#stock-color-search');
+ if(colorSearch){
+  colorSearch.oninput=()=>{
+   const term=normalize(colorSearch.value.trim());
+   for(const section of $('#editor-body').querySelectorAll('.product-section')){
+    const match=!term||section.dataset.stockColor.includes(term);
+    section.hidden=!match;
+    if(term&&match)section.open=true;
+   }
+  };
+ }
  $('#editor-body').onclick=event=>{
+  const allBtn=event.target.closest('[data-stock-all]');
+  if(allBtn){
+   const val=allBtn.dataset.stockAll==='true';
+   for(const b of $('#editor-body').querySelectorAll('.stock-size'))b.setAttribute('aria-pressed',String(val));
+   updateCounts();
+   return;
+  }
+  const toggleBtn=event.target.closest('[data-stock-toggle-all]');
+  if(toggleBtn){
+   const open=toggleBtn.dataset.stockToggleAll==='open';
+   for(const s of $('#editor-body').querySelectorAll('.product-section'))if(!s.hidden)s.open=open;
+   toggleBtn.dataset.stockToggleAll=open?'close':'open';
+   toggleBtn.textContent=open?'Recolher cores':'Expandir cores';
+   return;
+  }
+  const groupBtn=event.target.closest('[data-stock-group]');
+  if(groupBtn){
+   const val=groupBtn.dataset.stockGroup==='true';
+   for(const b of groupBtn.closest('.product-section').querySelectorAll('.stock-size'))b.setAttribute('aria-pressed',String(val));
+   updateCounts();
+   return;
+  }
   const button=event.target.closest('.stock-size');
   if(!button)return;
   button.setAttribute('aria-pressed',String(button.getAttribute('aria-pressed')!=='true'));
-  const group=button.closest('.product-section');
-  const all=group.querySelectorAll('.stock-size').length;
-  const available=group.querySelectorAll('.stock-size[aria-pressed=true]').length;
-  group.querySelector('[data-stock-count]').textContent=available+'/'+all+' disponíveis';
+  updateCounts();
  };
 }
 function openPromotion(id=0) {
@@ -476,6 +532,7 @@ function openBasket(id=0) {
   <div class="combo-workspace">
    <section aria-labelledby="basket-count">
     <h3 id="basket-count" role="status"></h3>
+    <label class="field">Buscar no combo<input id="basket-selected-search" type="search" placeholder="Nome, marca ou referência"></label>
     <div id="basket-selected"></div>
    </section>
    <section aria-label="Catálogo">
@@ -491,7 +548,7 @@ function openBasket(id=0) {
    return combo?patchProduct(combo.id,payload):api('products',{method:'POST',body:JSON.stringify(payload)});
  },'combo');
 
- const marked=$('#basket-selected'),list=$('#basket-list'),searchBox=$('#basket-search');
+ const marked=$('#basket-selected'),list=$('#basket-list'),searchBox=$('#basket-search'),markedSearchBox=$('#basket-selected-search');
  const row=product=>{
   const {id,name}=product;
   const checked=selected.has(id);
@@ -511,9 +568,10 @@ function openBasket(id=0) {
   list.scrollTop=scroll;
  };
  const drawMarked=()=>{
+  const term=normalize(markedSearchBox.value.trim());
   $('#basket-count').textContent='No combo ('+selected.size+'/20)';
-  marked.innerHTML=eligible.filter(p=>selected.has(p.id)).map(row).join('')
-   ||'<p class="helper">Marque pelo menos dois produtos.</p>';
+  marked.innerHTML=eligible.filter(p=>selected.has(p.id)&&(!term||normalize(p.name+' '+p.brand+' '+p.sku).includes(term))).map(row).join('')
+   ||(selected.size?'<p class="helper">Nenhum produto encontrado no combo.</p>':'<p class="helper">Marque pelo menos dois produtos.</p>');
  };
  const change=event=>{
   const input=event.target;
