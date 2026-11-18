@@ -334,6 +334,7 @@ function openPromotion(id=0) {
   <div class="combo-workspace">
    <section aria-labelledby="promo-count">
     <h3 id="promo-count" role="status"></h3>
+    <label class="field">Buscar na promoção<input id="promo-selected-search" type="search" placeholder="Nome, marca ou referência"></label>
     <div id="promo-selected"></div>
    </section>
    <section aria-label="Catálogo">
@@ -352,7 +353,7 @@ function openPromotion(id=0) {
    return promo?api('promotions/'+promo.id,{method:'PUT',body:JSON.stringify(payload)}):api('promotions',{method:'POST',body:JSON.stringify(payload)});
  },'combo');
 
- const marked=$('#promo-selected'),list=$('#promo-list'),searchBox=$('#promo-search');
+ const marked=$('#promo-selected'),list=$('#promo-list'),searchBox=$('#promo-search'),markedSearchBox=$('#promo-selected-search');
  const panel=$('#promo-item-dialog'),pctInput=$('#promo-item-pct'),itemPreview=$('#promo-item-preview'),itemError=$('#promo-item-error');
  let pendingId=0;
 
@@ -423,9 +424,11 @@ function openPromotion(id=0) {
   list.scrollTop=scroll;
  };
  const drawMarked=()=>{
+  const term=normalize(markedSearchBox.value.trim());
   $('#promo-count').textContent='Na promoção ('+selected.size+')';
-  marked.innerHTML=eligible.filter(p=>selected.has(p.id)).map(row).join('')
-   ||'<p class="helper">Selecione os produtos da promoção.</p>';
+  const items=eligible.filter(p=>selected.has(p.id)&&(!term||normalize(p.name+' '+p.brand+' '+p.sku).includes(term)));
+  marked.innerHTML=items.map(row).join('')
+   ||(selected.size?'<p class="helper">Nenhum produto encontrado na promoção.</p>':'<p class="helper">Selecione os produtos da promoção.</p>');
  };
  const change=event=>{
   const pid=Number(event.target.dataset.promoProduct);
@@ -447,6 +450,7 @@ function openPromotion(id=0) {
  };
  list.onchange=marked.onchange=change;
  searchBox.oninput=drawAvailable;
+ markedSearchBox.oninput=drawMarked;
  drawMarked();
  drawAvailable();
 }
@@ -532,6 +536,7 @@ function openBasket(id=0) {
  };
  list.onchange=marked.onchange=change;
  searchBox.oninput=drawAvailable;
+ markedSearchBox.oninput=drawMarked;
  drawMarked();
  drawAvailable();
 }
