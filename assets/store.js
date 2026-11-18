@@ -437,6 +437,7 @@
     }catch(error){if(turn===productSequence)$('#ec-product-content').innerHTML=`<p class="ec-loading">${escape(error.message)}</p>`;}
   }
   function selectedColor(){const group=variantGroups(current).find(g=>/^(cor|color|colour)$/i.test(g.name));return group&&choices[group.name]?choices[group.name]:null;}
+  let scrollLockUntil=0;
   function syncPhotoThumbs(){
     $('#ec-photo-thumbnails').querySelectorAll('[data-photo]').forEach((button,i)=>{
       button.classList.toggle('is-active',i===photoIndex);
@@ -448,7 +449,9 @@
     if(!images.length)return;
     photoIndex=(index+images.length)%images.length;
     const main=$('#ec-main-photo');
-    if(main&&main.clientWidth)main.scrollTo({left:photoIndex*main.clientWidth,behavior:instant||reduceMotion.matches?'instant':'smooth'});
+    const useInstant=instant||reduceMotion.matches;
+    scrollLockUntil=Date.now()+(useInstant?60:420);
+    if(main&&main.clientWidth)main.scrollTo({left:photoIndex*main.clientWidth,behavior:useInstant?'instant':'smooth'});
     syncPhotoThumbs();
   }
   function renderProductPhotos(color){
@@ -457,18 +460,19 @@
     photoIndex=0;
     const images=galleryPhotos(current,color);
     $('#ec-gallery-controls').hidden=images.length<2;
-    $('#ec-photo-thumbnails').innerHTML=images.map((url,i)=>`<button type="button" data-photo="${i}" aria-label="Ver foto ${i+1}"><img src="${escape(url)}" alt="${escape(current.name)} — foto ${i+1}" loading="lazy"></button>`).join('');
+    $('#ec-photo-thumbnails').innerHTML=images.map((url,i)=>`<button type="button" data-photo="${i}" aria-label="Ver foto ${i+1}"><img src="${escape(url)}" alt="${escape(current.name)} — foto ${i+1}" loading="eager"></button>`).join('');
     const main=$('#ec-main-photo');
     if(images.length){
-      main.innerHTML=images.map(url=>`<div class="ec-detail-slide">${imageFor({...current,image:url})}</div>`).join('');
+      main.innerHTML=images.map(url=>`<div class="ec-detail-slide">${imageFor({...current,image:url}).replace('loading="lazy"','loading="eager"')}</div>`).join('');
       let scrollTimer;
       main.onscroll=()=>{
+        if(Date.now()<scrollLockUntil)return;
         clearTimeout(scrollTimer);
         scrollTimer=setTimeout(()=>{
-          if(!main.clientWidth)return;
+          if(!main.clientWidth||Date.now()<scrollLockUntil)return;
           const idx=Math.max(0,Math.min(images.length-1,Math.round(main.scrollLeft/main.clientWidth)));
           if(idx!==photoIndex){photoIndex=idx;syncPhotoThumbs();}
-        },60);
+        },120);
       };
       if(images.length>1){
         let startX=0,startScroll=0,dragging=false;
@@ -482,8 +486,13 @@
           if(!dragging)return;
           dragging=false;main.classList.remove('is-dragging');
           if(main.hasPointerCapture(event.pointerId))main.releasePointerCapture(event.pointerId);
-          const idx=main.clientWidth?Math.max(0,Math.min(images.length-1,Math.round(main.scrollLeft/main.clientWidth))):0;
-          showProductPhoto(idx);
+          const delta=event.clientX-startX;
+          if(Math.abs(delta)>=36){
+            const next=delta<0?Math.min(images.length-1,photoIndex+1):Math.max(0,photoIndex-1);
+            showProductPhoto(next);
+          }else{
+            showProductPhoto(photoIndex);
+          }
         };
         main.onpointerup=stopDrag;main.onpointercancel=stopDrag;
       }else{
@@ -547,8 +556,8 @@
       const promoProducts=activePromos.flatMap(p=>p.products||[]).filter(p=>audience?matchesPreference(p,audience):true);
       const seenOffer=new Set();
       const homeOffers=[...promoProducts,...offers].filter(p=>!seenOffer.has(p.id)&&seenOffer.add(p.id)).slice(0,6);
-      $('#ec-new-grid').innerHTML=arrivals.map(card).join('')||'<p class="ec-loading">Ofertas chegam em breve.</p>';
-      $('#ec-offer-grid').innerHTML=homeOffers.map(card).join('')||'<p class="ec-loading">Ofertas chegam em breve.</p>';
+      $('#ec-new-grid').innerHTML=arrivals.map(card).join('').replaceAll('loading="lazy"','loading="eager"')||'<p class="ec-loading">Novidades chegam em breve.</p>';
+      $('#ec-offer-grid').innerHTML=homeOffers.map(card).join('').replaceAll('loading="lazy"','loading="eager"')||'<p class="ec-loading">Ofertas chegam em breve.</p>';
       const campaignPool=catalogPool.filter(p=>!arrivals.some(n=>n.id===p.id));
       const campaign=selectDistinctPair(campaignPool,audience,previousPair(prefix+':campaign'));
       rememberPair(prefix+':campaign',campaign);
