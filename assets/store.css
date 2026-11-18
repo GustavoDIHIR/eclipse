@@ -340,11 +340,17 @@
 #eclipse-store .ec-promo-row-title{margin:0;font-size:clamp(1.2rem,2.2vw,1.65rem);font-weight:800;letter-spacing:.02em;text-transform:uppercase;color:#161816}
 #eclipse-store .ec-promo-row-dates{font-size:.76rem;color:#5f695b;font-weight:500}
 #eclipse-store .ec-promo-swipe-hint{margin:0;font-size:.72rem;color:#58624f}
+#eclipse-store .ec-promo-row-wrap{position:relative;min-width:0}
+#eclipse-store .ec-promo-edge{position:absolute;top:38%;transform:translateY(-50%);z-index:3;width:40px;height:40px;border-radius:50%;border:1px solid #d5ddce;background:#ffffffeb;color:#161816;font-size:22px;line-height:1;display:grid;place-items:center;box-shadow:0 4px 14px #14201324;backdrop-filter:blur(4px);padding:0}
+#eclipse-store .ec-promo-edge:hover{background:#fff;border-color:#9bb08a}
+#eclipse-store .ec-promo-prev{left:8px}
+#eclipse-store .ec-promo-next{right:8px}
 #eclipse-store .ec-promo-row-track{display:grid;grid-auto-flow:column;grid-auto-columns:calc((100% - 60px) / 6);gap:12px;overflow-x:auto;scroll-snap-type:x proximity;overscroll-behavior-x:contain;scrollbar-width:thin;padding-bottom:14px}
 #eclipse-store .ec-promo-row-track>.ec-card{scroll-snap-align:start}
 @media(max-width:1050px){
  #eclipse-store .ec-promo-row-track{grid-auto-columns:minmax(170px,1fr)}
 }
 @media(max-width:760px){
+ #eclipse-store .ec-promo-edge{display:none}
  #eclipse-store .ec-promo-row-track{grid-auto-columns:minmax(108px,31vw);gap:8px;padding-bottom:10px}
 }
