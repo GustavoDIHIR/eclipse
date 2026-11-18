@@ -147,3 +147,18 @@
  #admin-app #editor .dialog-footer .error{max-width:none}
  #admin-app .login-panel{min-height:100dvh;padding:20px 16px}
 }
+#promo-item-dialog{width:min(380px,92vw);padding:18px 20px;background:#fff;border:1px solid var(--line);box-shadow:0 18px 42px #14201338;border-radius:6px}
+#promo-item-dialog .promo-item-box{display:grid;gap:12px}
+#promo-item-dialog .promo-item-top{display:grid;gap:3px}
+#promo-item-dialog .promo-item-top strong{font-size:14px;line-height:1.35}
+#promo-item-dialog .promo-item-presets{display:flex;flex-wrap:wrap;gap:6px}
+#promo-item-dialog .promo-preset{border:1px solid var(--line);background:#f7f9f4;padding:6px 10px;font-size:12px;font-weight:700;min-height:34px;border-radius:4px}
+#promo-item-dialog .promo-preset:hover{background:#edf2e7;border-color:#9bb08a}
+#promo-item-dialog .promo-item-row{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:end}
+#promo-item-dialog .promo-item-row .field{margin:0}
+#promo-item-dialog .promo-item-preview{background:#eef4e4;border:1px solid #d8e4c7;padding:8px 12px;min-height:44px;display:grid;align-content:center;text-align:right;font-size:12px;min-width:110px}
+#promo-item-dialog .promo-item-preview small{display:block;font-size:10px;color:var(--muted)}
+#promo-item-dialog .promo-item-preview strong{font-size:14px}
+#promo-item-dialog .error{margin:0}
+#promo-item-dialog .promo-item-actions{display:flex;justify-content:flex-end;gap:8px}
+#promo-item-dialog .promo-item-actions .button{min-height:38px;padding:9px 14px}

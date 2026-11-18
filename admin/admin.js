@@ -311,19 +311,26 @@ function openPromotion(id=0) {
   </div>
   <p class="helper">Ao marcar um produto, informe a porcentagem de desconto dele. Todos os tamanhos disponíveis serão incluídos automaticamente.</p>
   ${missing.length?'<p class="notice">Um ou mais produtos foram removidos do catálogo. Revise a seleção antes de salvar.</p>':''}
-  <div id="promo-item-panel" class="card" hidden style="margin-bottom:12px;border:2px solid #161816;padding:14px">
-   <h3 id="promo-item-title" style="margin:0 0 6px"></h3>
-   <p id="promo-item-base" class="helper" style="margin:0 0 10px"></p>
-   <div class="editor-grid">
-    <label class="field">Porcentagem de desconto (%)<input id="promo-item-pct" type="number" min="0.01" max="100" step="0.01" placeholder="Ex.: 20"></label>
-    <div style="display:flex;align-items:flex-end"><p id="promo-item-preview" class="notice" style="margin:0;width:100%"></p></div>
+  <dialog id="promo-item-dialog" aria-labelledby="promo-item-title">
+   <div class="promo-item-box">
+    <div class="promo-item-top">
+     <strong id="promo-item-title"></strong>
+     <small id="promo-item-base"></small>
+    </div>
+    <div class="promo-item-presets" aria-label="Atalhos de desconto">
+     ${[10,15,20,30,50].map(n=>`<button type="button" class="promo-preset" data-pct="${n}">${n}%</button>`).join('')}
+    </div>
+    <div class="promo-item-row">
+     <label class="field">Desconto (%)<input id="promo-item-pct" type="number" min="0.01" max="100" step="0.01" placeholder="Ex.: 20"></label>
+     <div id="promo-item-preview" class="promo-item-preview"></div>
+    </div>
+    <p id="promo-item-error" class="error" role="alert"></p>
+    <div class="promo-item-actions">
+     <button type="button" id="promo-item-cancel" class="button outline">Cancelar</button>
+     <button type="button" id="promo-item-confirm" class="button lime">Aplicar</button>
+    </div>
    </div>
-   <p id="promo-item-error" class="error" role="alert"></p>
-   <div class="checks" style="margin-top:8px">
-    <button type="button" id="promo-item-cancel" class="button outline">Cancelar</button>
-    <button type="button" id="promo-item-confirm" class="button lime">Aplicar desconto</button>
-   </div>
-  </div>
+  </dialog>
   <div class="combo-workspace">
    <section aria-labelledby="promo-count">
     <h3 id="promo-count" role="status"></h3>
@@ -346,45 +353,55 @@ function openPromotion(id=0) {
  },'combo');
 
  const marked=$('#promo-selected'),list=$('#promo-list'),searchBox=$('#promo-search');
- const panel=$('#promo-item-panel'),pctInput=$('#promo-item-pct'),itemPreview=$('#promo-item-preview'),itemError=$('#promo-item-error');
+ const panel=$('#promo-item-dialog'),pctInput=$('#promo-item-pct'),itemPreview=$('#promo-item-preview'),itemError=$('#promo-item-error');
  let pendingId=0;
 
  const updateItemPreview=()=>{
   const prod=eligible.find(p=>p.id===pendingId);
   const pct=Number(pctInput.value);
-  if(!prod||!(pct>0&&pct<=100)){itemPreview.textContent='Informe uma porcentagem entre 0,01% e 100%.';return;}
+  if(!prod||!(pct>0&&pct<=100)){itemPreview.textContent='Informe 0,01% a 100%';return;}
   const discounted=Math.max(0,Math.round(prod.regular*(1-pct/100)*100)/100);
-  itemPreview.textContent=`De ${money(prod.regular)} por ${money(discounted)} (-${pct}%)`;
+  itemPreview.innerHTML=`<small>Novo preço</small><strong>${money(discounted)}</strong>`;
+ };
+ const closeItemDialog=()=>{
+  if(panel.open)panel.close();
+  pendingId=0;
+ };
+ const confirmItemDiscount=()=>{
+  const pct=Math.round(Number(pctInput.value)*100)/100;
+  if(!(pct>0&&pct<=100)){itemError.textContent='Informe uma porcentagem válida entre 0,01% e 100%.';pctInput.focus();return;}
+  selected.set(pendingId,pct);
+  closeItemDialog();
+  $('#editor-error').textContent='';
+  drawMarked();
+  drawAvailable();
  };
  const openItemDiscount=pid=>{
   const prod=eligible.find(p=>p.id===pid);
   if(!prod)return;
   pendingId=pid;
   $('#promo-item-title').textContent=prod.name;
-  $('#promo-item-base').textContent=`${prod.sku} · Preço normal: ${money(prod.regular)} · Todos os tamanhos incluídos`;
+  $('#promo-item-base').textContent=`${prod.sku} · Normal: ${money(prod.regular)}`;
   pctInput.value=selected.has(pid)?String(selected.get(pid)):'';
   itemError.textContent='';
-  panel.hidden=false;
   updateItemPreview();
+  if(!panel.open)panel.showModal();
   pctInput.focus();
+  pctInput.select();
  };
  pctInput.oninput=updateItemPreview;
+ pctInput.onkeydown=event=>{if(event.key==='Enter'){event.preventDefault();confirmItemDiscount();}};
+ panel.onclick=event=>{
+  const preset=event.target.closest('[data-pct]');
+  if(preset){pctInput.value=preset.dataset.pct;itemError.textContent='';updateItemPreview();pctInput.focus();}
+ };
+ panel.oncancel=()=>{pendingId=0;drawMarked();drawAvailable();};
  $('#promo-item-cancel').onclick=()=>{
-  panel.hidden=true;
-  pendingId=0;
+  closeItemDialog();
   drawMarked();
   drawAvailable();
  };
- $('#promo-item-confirm').onclick=()=>{
-  const pct=Math.round(Number(pctInput.value)*100)/100;
-  if(!(pct>0&&pct<=100)){itemError.textContent='Informe uma porcentagem válida entre 0,01% e 100%.';pctInput.focus();return;}
-  selected.set(pendingId,pct);
-  panel.hidden=true;
-  pendingId=0;
-  $('#editor-error').textContent='';
-  drawMarked();
-  drawAvailable();
- };
+ $('#promo-item-confirm').onclick=confirmItemDiscount;
  const row=product=>{
   const checked=selected.has(product.id);
   const pct=selected.get(product.id);
@@ -418,7 +435,7 @@ function openPromotion(id=0) {
    openItemDiscount(pid);
   }else{
    selected.delete(pid);
-   if(pendingId===pid){panel.hidden=true;pendingId=0;}
+   if(pendingId===pid)closeItemDialog();
    $('#editor-error').textContent='';
    drawMarked();
    drawAvailable();
