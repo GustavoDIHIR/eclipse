@@ -360,4 +360,33 @@
 }
 @media(max-width:760px){
  #eclipse-store #ec-grid:not(.ec-promo-rows){grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 8px}
+ #eclipse-store,#eclipse-store .ec-store-v2{overflow-x:clip;max-width:100%}
+ #eclipse-store .ec-store-v2 .ec-header{min-height:60px;padding:8px 14px;gap:8px;flex-wrap:nowrap;align-items:center}
+ #eclipse-store .ec-header .ec-logo-file{width:48px;height:44px}
+ #eclipse-store .ec-header-actions{order:1;margin-left:auto;gap:8px;align-items:center}
+ #eclipse-store #ec-mobile-menu{order:2;margin-left:0;min-height:40px;padding:0 10px}
+ #eclipse-store .ec-personal-bar{padding:10px 14px;gap:4px;align-items:flex-start}
+ #eclipse-store .ec-section-head{flex-direction:column;align-items:flex-start;gap:6px;margin-bottom:12px}
+ #eclipse-store .ec-section-head :is(h1,h2){font-size:clamp(1.3rem,6vw,1.65rem);line-height:1.15;letter-spacing:-.5px}
+ #eclipse-store .ec-restored-campaign{grid-template-columns:1fr;min-height:0;gap:0}
+ #eclipse-store .ec-restored-campaign .ec-hero-copy{padding:24px 14px 18px;gap:12px}
+ #eclipse-store .ec-restored-campaign h2{font-size:clamp(1.9rem,9vw,2.5rem);line-height:1.02;letter-spacing:-1.5px}
+ #eclipse-store .ec-restored-campaign .ec-button{width:100%;justify-content:space-between;min-height:46px}
+ #eclipse-store #ec-campaign-products{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:0 14px 24px}
+ #eclipse-store .ec-campaign-product{min-height:220px;height:220px}
+ #eclipse-store .ec-campaign-product>span:not(.ec-photo-fallback){left:8px;right:8px;bottom:8px;padding:8px}
+ #eclipse-store .ec-offers-stripe{padding:18px 14px;flex-direction:column;align-items:flex-start;gap:8px}
+ #eclipse-store .ec-offers-stripe h2{font-size:1.35rem}
+ #eclipse-store .ec-card-arrow{display:none}
+ #eclipse-store .ec-sale-tag,#eclipse-store .ec-new-tag{top:6px;left:6px;font-size:7px;padding:3px 5px;letter-spacing:.3px}
+ #eclipse-store .ec-card-info{padding:6px 2px 0;display:grid;gap:3px}
+ #eclipse-store .ec-price{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 6px}
+ #eclipse-store .ec-about{grid-template-columns:1fr;padding:28px 14px;gap:16px}
+ #eclipse-store .ec-about h2{font-size:1.75rem;letter-spacing:-1px;line-height:1.1}
+ #eclipse-store .ec-how{grid-template-columns:1fr;gap:10px;margin-top:16px}
+ #eclipse-store .ec-store-v2 footer.ec-compact-footer{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding:20px 14px}
+ #eclipse-store .ec-compact-footer .ec-footer-address{flex:none;width:100%}
+ #eclipse-store .ec-compact-footer .ec-footer-links{width:100%;gap:14px}
+ #eclipse-store .ec-compact-footer .ec-authorship{width:100%;display:flex;flex-direction:column;gap:6px}
+ #eclipse-store .ec-cart-item{grid-template-columns:64px minmax(0,1fr) auto;gap:10px}
 }
