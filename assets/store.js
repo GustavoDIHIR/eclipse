@@ -173,10 +173,16 @@
   const formatDateBr=iso=>{if(!iso)return '';const [y,m,d]=String(iso).split('-');return y&&m&&d?`${d}/${m}/${y}`:iso;};
   const promoSection=p=>`<section class="ec-promo-row" aria-label="${escape(p.name)}">
     <div class="ec-promo-row-head">
-      <h3 class="ec-promo-row-title">${escape(p.name)}</h3>
-      <small class="ec-promo-row-dates">Válida de ${escape(formatDateBr(p.startDate))} até ${escape(formatDateBr(p.endDate))}</small>
+      <div class="ec-promo-row-meta">
+        <h3 class="ec-promo-row-title">${escape(p.name)}</h3>
+        <small class="ec-promo-row-dates">Válida de ${escape(formatDateBr(p.startDate))} até ${escape(formatDateBr(p.endDate))}</small>
+      </div>
+      <div class="ec-promo-row-nav">
+        <button type="button" class="ec-outline ec-promo-arrow" data-promo-scroll="-1" aria-label="Produtos anteriores de ${escape(p.name)}">‹</button>
+        <button type="button" class="ec-outline ec-promo-arrow" data-promo-scroll="1" aria-label="Próximos produtos de ${escape(p.name)}">›</button>
+      </div>
     </div>
-    <div class="ec-grid ec-promo-row-grid">${(p.products||[]).map(card).join('')||'<p class="ec-loading">Nenhum produto disponível nesta promoção.</p>'}</div>
+    <div class="ec-promo-row-track">${(p.products||[]).map(card).join('')||'<p class="ec-loading">Nenhum produto disponível nesta promoção.</p>'}</div>
   </section>`;
   const card=p=>`<article class="ec-card ${p.sale?'ec-offer-card':''}">${p.basketOptions?.length?comboCarousel(p,true):`<button class="ec-product-open ec-product-image" data-id="${p.id}" aria-label="Ver ${escape(p.name)}">${imageFor(p)}${p.basket?'<span class="ec-sale-tag">COMBO</span>':p.sale?'<span class="ec-sale-tag">OFERTA</span>':p.isNew?'<span class="ec-new-tag">ACABOU DE CHEGAR</span>':''}<span class="ec-card-arrow">↗</span></button>`}<div class="ec-card-info"><p>${escape([...new Set(p.categories||[])].join(' / '))}</p><button class="ec-product-open ec-product-name" data-id="${p.id}">${escape(p.name)}</button>${p.sale?offerPrice(p):`<div class="ec-price"><strong>${money(p.price)}</strong></div>`}<span class="ec-card-hint">${p.available?(p.basketOptions?'Escolha o tamanho de cada peça':'Escolha sua cor e tamanho'):'Esgotado'}</span></div></article>`;
   root.innerHTML=`<div class="ec-app ec-store-v2">
@@ -564,6 +570,14 @@
       button.setAttribute('aria-pressed',String(paused));
       button.setAttribute('aria-label',paused?'Retomar rotação das fotos':'Pausar rotação das fotos');
       button.textContent=paused?'▶':'Ⅱ';
+      return;
+    }
+    if(button.dataset.promoScroll){
+      const track=button.closest('.ec-promo-row')?.querySelector('.ec-promo-row-track');
+      if(track){
+        const step=Math.max(track.clientWidth*0.75,220)*Number(button.dataset.promoScroll);
+        track.scrollBy({left:step,behavior:reduceMotion.matches?'instant':'smooth'});
+      }
       return;
     }
     if(button.dataset.galleryStep){
