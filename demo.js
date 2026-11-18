@@ -39,6 +39,7 @@ window.ECLIPSE_DEMO = { async request(path, options) {
     if (!product) throw Error('Produto indisponível.');
     return product;
   }
+  const discountRate=p=>p.regular>0&&p.price<p.regular?(p.regular-p.price)/p.regular:0;
   const activePromos=()=> {
     if(window.ECLIPSE_PUBLIC_ADMIN?.promotions)return window.ECLIPSE_PUBLIC_ADMIN.promotions();
     const today=new Date().toLocaleDateString('en-CA');
@@ -59,6 +60,7 @@ window.ECLIPSE_DEMO = { async request(path, options) {
         promoProducts.push(copyProd);
         if(copyProd.image&&!previewImages.includes(copyProd.image)&&previewImages.length<4)previewImages.push(copyProd.image);
       }
+      promoProducts.sort((a,b)=>discountRate(b)-discountRate(a)||(b.offerAt||b.arrivedAt||0)-(a.offerAt||a.arrivedAt||0)||b.id-a.id);
       return {...p,items:entries,productIds:validIds,status:'active',productCount:validIds.length,previewImages,products:promoProducts};
     });
   };
@@ -82,8 +84,9 @@ window.ECLIPSE_DEMO = { async request(path, options) {
   if(q.get('scope')==='new') products=products.filter(p=>!p.basket&&Date.now()/1000-p.arrivedAt>=0&&Date.now()/1000-p.arrivedAt<30*86400);
   if(q.get('stock')==='1') products=products.filter(p=>p.available);
   if(q.get('scope')==='offers'){
-    products.sort((a,b)=>(b.offerAt||b.arrivedAt||0)-(a.offerAt||a.arrivedAt||0)||b.id-a.id);
     if(q.get('order')==='price')products.sort((a,b)=>a.price-b.price);
+    else if(q.get('order')==='recent')products.sort((a,b)=>(b.offerAt||b.arrivedAt||0)-(a.offerAt||a.arrivedAt||0)||b.id-a.id);
+    else products.sort((a,b)=>discountRate(b)-discountRate(a)||(b.offerAt||b.arrivedAt||0)-(a.offerAt||a.arrivedAt||0)||b.id-a.id);
   }else products.sort((a,b)=>b.arrivedAt-a.arrivedAt);
   const perPage=Math.min(24,Math.max(1,Number(q.get('limit'))||24)), page=Math.max(1,Number(q.get('page'))||1);
   return {products:products.slice((page-1)*perPage,page*perPage),total:products.length,pages:Math.ceil(products.length/perPage)};

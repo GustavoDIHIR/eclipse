@@ -128,6 +128,7 @@
     if(activeOnly)promoProducts.push(copyProd);
     if(copyProd.image&&!previewImages.includes(copyProd.image)&&previewImages.length<4)previewImages.push(copyProd.image);
    }
+   if(activeOnly)promoProducts.sort((a,b)=>((b.regular>0&&b.price<b.regular?(b.regular-b.price)/b.regular:0)-(a.regular>0&&a.price<a.regular?(a.regular-a.price)/a.regular:0))||(b.offerAt||b.arrivedAt||0)-(a.offerAt||a.arrivedAt||0)||b.id-a.id);
    return {...promo,items:validEntries,productIds:validIds,status,productCount:validIds.length,previewImages,...(activeOnly?{products:promoProducts}:{})};
   }).filter(Boolean);
  }
