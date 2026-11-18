@@ -333,6 +333,51 @@
  #eclipse-store .ec-header-actions{gap:2px}
  #eclipse-store .ec-tools .ec-search input{font-size:16px}
 }
+#eclipse-store .ec-account-btn{border:1px solid #d5ddce;background:#fff;padding:7px 12px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.03em;white-space:nowrap}
+#eclipse-store .ec-account-btn:hover{background:#f3f5ef}
+#eclipse-store .ec-checkout-customer{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0 4px}
+#eclipse-store .ec-site-payment-box{background:#eef4e6;border:1px solid #b5cb99;border-radius:8px;padding:10px 12px;margin:10px 0;font-size:12px;line-height:1.45}
+#eclipse-store .ec-site-payment-box strong{display:block;margin-bottom:4px}
+#eclipse-store .ec-checkout-ready-actions{display:grid;gap:8px;margin-top:8px}
+#eclipse-store .ec-account-dialog,#eclipse-store .ec-receipt-dialog{max-width:680px;width:min(94vw,680px);padding:28px 24px}
+#eclipse-store .ec-account-access{max-width:440px;margin:0 auto;display:grid;gap:12px}
+#eclipse-store .ec-account-access h2{font-size:24px;font-weight:800}
+#eclipse-store .ec-password-wrap{display:flex;align-items:center;border:1px solid #c9cec3;border-radius:4px;background:#fff}
+#eclipse-store .ec-password-wrap input{border:0;flex:1;min-width:0}
+#eclipse-store .ec-password-wrap button{border:0;background:none;padding:0 10px;min-height:38px}
+#eclipse-store .ec-account-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+#eclipse-store .ec-account-nav{display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid #ddd;padding-bottom:10px;margin-bottom:16px}
+#eclipse-store .ec-account-nav button{border:1px solid #d5ddce;background:#fff;padding:7px 12px;border-radius:6px;font-size:12px;font-weight:700}
+#eclipse-store .ec-account-nav button[aria-current=page]{background:#131313;color:#fff;border-color:#131313}
+#eclipse-store .ec-account-overview{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-top:12px}
+#eclipse-store .ec-account-overview article{border:1px solid #ddd;border-radius:8px;padding:12px;display:grid;gap:8px;align-content:start}
+#eclipse-store .ec-order-card{border:1px solid #d5ddce;border-radius:8px;padding:12px 14px;margin-bottom:10px;display:grid;gap:8px}
+#eclipse-store .ec-order-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+#eclipse-store .ec-order-card-head small{display:block;color:#5d6457;font-size:11px;margin-top:2px}
+#eclipse-store .ec-order-meta{font-size:13px;color:#333}
+#eclipse-store .ec-order-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+#eclipse-store .ec-status-pill{display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700;background:#eef0e9;color:#222}
+#eclipse-store .ec-status-pendente{background:#fff3cd;color:#6c4e00}
+#eclipse-store .ec-status-pago_separacao,#eclipse-store .ec-status-em_separacao{background:#dbeafe;color:#1e40af}
+#eclipse-store .ec-status-pronto_retirada{background:#dcfce7;color:#166534}
+#eclipse-store .ec-status-enviado{background:#e0e7ff;color:#3730a3}
+#eclipse-store .ec-status-finalizado{background:#e5e7eb;color:#374151}
+#eclipse-store .ec-lookup-row{display:flex;gap:8px;margin:10px 0}
+#eclipse-store .ec-lookup-row input{flex:1;min-width:0;border:1px solid #c9cec3;padding:9px 12px;border-radius:4px}
+#eclipse-store .ec-receipt-box{display:grid;gap:12px}
+#eclipse-store .ec-receipt-status-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+#eclipse-store .ec-receipt-meta{display:grid;gap:6px;background:#f7f8f5;padding:12px;border-radius:8px;margin:0}
+#eclipse-store .ec-receipt-meta>div{display:flex;justify-content:space-between;gap:12px;font-size:13px}
+#eclipse-store .ec-receipt-meta dt{color:#5d6457}
+#eclipse-store .ec-receipt-meta dd{margin:0;font-weight:600;text-align:right}
+#eclipse-store .ec-receipt-items{list-style:none;padding:0;margin:0;display:grid;gap:6px;border-top:1px solid #ddd;border-bottom:1px solid #ddd;padding-block:10px}
+#eclipse-store .ec-receipt-items li{display:flex;justify-content:space-between;gap:12px;font-size:13px}
+#eclipse-store .ec-receipt-total{display:flex;justify-content:space-between;font-size:16px;font-weight:800}
+#eclipse-store .ec-receipt-actions{display:flex;gap:10px;flex-wrap:wrap}
+@media(max-width:600px){
+ #eclipse-store .ec-checkout-customer{grid-template-columns:1fr}
+ #eclipse-store .ec-account-btn{padding:6px 9px;font-size:10px}
+}
 @media(min-width:761px){#eclipse-store .ec-buy-actions{display:contents}}
 #eclipse-store #ec-grid.ec-promo-rows{display:grid;grid-template-columns:minmax(0,1fr);gap:32px}
 #eclipse-store .ec-promo-row{display:grid;gap:10px;min-width:0}

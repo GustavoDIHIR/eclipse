@@ -10,7 +10,7 @@ const logo=publicDemo?(window.ECLIPSE_CONFIG?.assets||'/assets/')+'eclipse-logo-
 const storefront=publicDemo?(window.ECLIPSE_CONFIG?.homeUrl||'/'):'/loja/';
 let bindingController=null;
 let saveAction=null;
-let csrf='',user='',products=[],promotions=[],view='dashboard',search='',page=1,editing=null,variants=[],colorImages={},photoColor='';
+let csrf='',user='',products=[],promotions=[],orders=[],view='dashboard',search='',page=1,editing=null,variants=[],colorImages={},photoColor='';
 const $=s=>root.querySelector(s);const perPage=20;
 async function api(path,options={}){
  if(publicDemo)return publicDemo.request(path,options);
@@ -23,11 +23,11 @@ function login(message=''){
  $('#restore-demo-login')?.addEventListener('click',async()=>{await api('restore-login',{method:'POST'});login('Senha de teste restaurada.');});
  $('#login-form').addEventListener('submit',async event=>{event.preventDefault();const button=$('#login-form button');button.disabled=true;try{const session=await api('login',{method:'POST',body:JSON.stringify({username:$('#username').value,password:$('#password').value})});csrf=session.csrf;user=session.username;await start();}catch(error){$('#login-error').textContent=error.message;}finally{if(button.isConnected)button.disabled=false;}});
 }
-function shell(){root.innerHTML=`<div class="layout"><aside class="sidebar"><a class="brand" href="${storefront}" target="_blank" rel="noopener"><img src="${logo}" alt="Eclipse"><small>ADMINISTRAÇÃO</small></a><button id="adm-menu" type="button" aria-controls="adm-navigation" aria-expanded="false">☰ Menu</button><div id="adm-navigation"><nav aria-label="Administração">${[['dashboard','Painel'],['products','Produtos'],['stock','Disponibilidade'],['offers','Ofertas'],['new','Lançamentos'],['settings','Configurações'],['backups','Backups'],...(user==='admin'?[['users','Usuários']]:[])].map(([key,label])=>`<button data-view="${key}" class="${view===key?'active':''}">${label}</button>`).join('')}</nav><div class="sidebar-bottom">${publicDemo?'<button id="reset-demo" class="text-button">Restaurar demonstração</button>':''}<span>Conectado: ${esc(user)}</span><button id="logout" class="text-button">Sair</button></div></div></aside><main class="main"><div class="topline"><span>${publicDemo?'DEMONSTRAÇÃO · ALTERAÇÕES NESTE NAVEGADOR':'PROTÓTIPO LOCAL · ECLIPSE'}</span><a href="${storefront}" target="_blank" rel="noopener">Abrir loja ↗</a></div>${demoNotice}<div id="content"></div></main></div><dialog id="editor" aria-labelledby="editor-title"><form id="product-form"><div class="dialog-header"><h2 id="editor-title">Produto</h2><button type="button" data-close aria-label="Fechar edição">×</button></div><div id="editor-body" class="editor-body"></div><div class="dialog-footer"><p id="editor-error" class="error" role="alert"></p><div><button type="button" class="text-button" data-close>Cancelar</button><button id="save-product" type="submit" class="button lime">Salvar produto ↗</button></div></div></form></dialog><dialog id="confirm-dialog" aria-labelledby="confirm-title"><div class="editor-body"><h2 id="confirm-title"></h2><p id="confirm-text" class="helper"></p><div class="checks"><button id="confirm-no" type="button" class="button outline">Cancelar</button><button id="confirm-yes" type="button" class="button">Confirmar</button></div></div></dialog><div id="toast" role="status"></div>`;bind();}
-async function reload(){const [p,pr]=await Promise.all([api('products'),api('promotions').catch(()=>({promotions:[]}))]);products=p.products;promotions=pr.promotions||[];}
+function shell(){root.innerHTML=`<div class="layout"><aside class="sidebar"><a class="brand" href="${storefront}" target="_blank" rel="noopener"><img src="${logo}" alt="Eclipse"><small>ADMINISTRAÇÃO</small></a><button id="adm-menu" type="button" aria-controls="adm-navigation" aria-expanded="false">☰ Menu</button><div id="adm-navigation"><nav aria-label="Administração">${[['dashboard','Painel'],['orders','Pedidos'],['products','Produtos'],['stock','Disponibilidade'],['offers','Ofertas'],['new','Lançamentos'],['settings','Configurações'],['backups','Backups'],...(user==='admin'?[['users','Usuários']]:[])].map(([key,label])=>`<button data-view="${key}" class="${view===key?'active':''}">${label}</button>`).join('')}</nav><div class="sidebar-bottom">${publicDemo?'<button id="reset-demo" class="text-button">Restaurar demonstração</button>':''}<span>Conectado: ${esc(user)}</span><button id="logout" class="text-button">Sair</button></div></div></aside><main class="main"><div class="topline"><span>${publicDemo?'DEMONSTRAÇÃO · ALTERAÇÕES NESTE NAVEGADOR':'PROTÓTIPO LOCAL · ECLIPSE'}</span><a href="${storefront}" target="_blank" rel="noopener">Abrir loja ↗</a></div>${demoNotice}<div id="content"></div></main></div><dialog id="editor" aria-labelledby="editor-title"><form id="product-form"><div class="dialog-header"><h2 id="editor-title">Produto</h2><button type="button" data-close aria-label="Fechar edição">×</button></div><div id="editor-body" class="editor-body"></div><div class="dialog-footer"><p id="editor-error" class="error" role="alert"></p><div><button type="button" class="text-button" data-close>Cancelar</button><button id="save-product" type="submit" class="button lime">Salvar produto ↗</button></div></div></form></dialog><dialog id="confirm-dialog" aria-labelledby="confirm-title"><div class="editor-body"><h2 id="confirm-title"></h2><p id="confirm-text" class="helper"></p><div class="checks"><button id="confirm-no" type="button" class="button outline">Cancelar</button><button id="confirm-yes" type="button" class="button">Confirmar</button></div></div></dialog><div id="toast" role="status"></div>`;bind();}
+async function reload(){const [p,pr,or]=await Promise.all([api('products'),api('promotions').catch(()=>({promotions:[]})),api('orders').catch(()=>({orders:[]}))]);products=p.products;promotions=pr.promotions||[];orders=or.orders||[];}
 async function start(){view='dashboard';await reload();shell();render();}
 const totalStock=p=>p.variants.filter(v=>v.available).length;
-function render(){root.querySelectorAll('[data-view]').forEach(button=>button.classList.toggle('active',button.dataset.view===view));if(view==='dashboard')dashboard();else if(view==='settings')settings();else if(view==='backups')backups();else if(view==='users'&&user==='admin')renderUsers();else productList();}
+function render(){root.querySelectorAll('[data-view]').forEach(button=>button.classList.toggle('active',button.dataset.view===view));if(view==='dashboard')dashboard();else if(view==='orders')ordersView();else if(view==='settings')settings();else if(view==='backups')backups();else if(view==='users'&&user==='admin')renderUsers();else productList();}
 function heading(title,description,add=false){return `<div class="heading"><div><h1>${title}</h1><p>${description}</p></div>${add?'<button class="button lime" id="new-product">Adicionar produto +</button>':''}</div>`;}
 function dashboard(){
  const models=products.filter(p=>!p.basket);
@@ -599,6 +599,47 @@ function openBasket(id=0) {
  drawAvailable();
 }
 
+const ORDER_STATUSES={pendente:'Pendente',pago_separacao:'Pago · Aguardando separação',em_separacao:'Em separação',pronto_retirada:'Pronto para retirada',enviado:'Enviado',finalizado:'Finalizado'};
+function ordersView(){
+ let statusFilter='open';
+ const draw=()=>{
+  const term=searchKey(search);
+  const filtered=orders.filter(o=>{
+   if(statusFilter==='open'&&o.status==='finalizado')return false;
+   if(statusFilter!=='all'&&statusFilter!=='open'&&o.status!==statusFilter)return false;
+   return !term||searchKey([o.code,o.customerName,o.customerEmail,o.customerPhone].join(' ')).includes(term);
+  });
+  $('#orders-count').textContent=`${filtered.length} pedido(s)`;
+  $('#orders-list').innerHTML=filtered.length?`<div class="table-scroll"><table><thead><tr><th>Pedido</th><th>Cliente</th><th>Modalidade</th><th>Total</th><th>Status</th><th>Ações</th></tr></thead><tbody>${filtered.map(o=>{
+   const dt=o.createdAt?new Date(o.createdAt*1000).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'}):'';
+   const receiptLink=new URL(storefront,location.href).href.split('#')[0]+'#comprovante?codigo='+encodeURIComponent(o.code);
+   const phone=(o.customerPhone||'').replace(/\D/g,'');
+   const waNum=phone.length>=10?(phone.startsWith('55')?phone:'55'+phone):'';
+   const readyMsg=`Olá${o.customerName?' '+o.customerName:''}! Seu pedido ${o.code} na Eclipse está PRONTO PARA RETIRADA/ENVIO.\nComprovante: ${receiptLink}`;
+   return `<tr>
+    <td><span class="name">${esc(o.code)}</span><small>${esc(dt)} · ${(o.items||[]).length} item(ns)</small></td>
+    <td>${esc(o.customerName||'Cliente sem cadastro')}<small>${esc([o.customerEmail,o.customerPhone].filter(Boolean).join(' · ')||'—')}</small></td>
+    <td>${o.checkoutMode==='site'?'Pago pelo site':'WhatsApp'}<small>${o.fulfilment==='retirada'?'Retirar na loja':'Entrega'} · ${esc(o.payment)}</small></td>
+    <td><strong>${money(o.total||0)}</strong></td>
+    <td><select class="order-status-select" data-order-status="${esc(o.code)}" aria-label="Status do pedido ${esc(o.code)}">${Object.entries(ORDER_STATUSES).map(([k,l])=>`<option value="${k}" ${o.status===k?'selected':''}>${esc(l)}</option>`).join('')}</select></td>
+    <td><div class="row-actions">
+     <a class="text-button" href="${esc(receiptLink)}" target="_blank" rel="noopener">Comprovante ↗</a>
+     ${o.status!=='pronto_retirada'&&o.status!=='finalizado'?`<button type="button" data-order-ready="${esc(o.code)}" data-order-wa="${waNum?`https://wa.me/${waNum}?text=${encodeURIComponent(readyMsg)}`:''}">Pronto p/ retirada</button>`:''}
+     ${o.status!=='finalizado'?`<button type="button" data-order-finish="${esc(o.code)}">Finalizar</button>`:''}
+    </div></td>
+   </tr>`;
+  }).join('')}</tbody></table></div>`:'<div class="empty">Nenhum pedido encontrado.</div>';
+ };
+ $('#content').innerHTML=heading('Pedidos','Acompanhe pedidos do WhatsApp e pagos pelo site até a entrega ou retirada.')+
+  `<div class="catalog-tools">
+   <label class="field">Buscar<input id="orders-search" type="search" placeholder="Código, cliente, e-mail ou telefone" value="${esc(search)}"></label>
+   <label class="field">Filtro<select id="orders-filter"><option value="open">Pendentes / Em andamento</option><option value="all">Todos</option>${Object.entries(ORDER_STATUSES).map(([k,l])=>`<option value="${k}">${esc(l)}</option>`).join('')}</select></label>
+  </div>
+  <p id="orders-count" class="helper" role="status"></p><div id="orders-list"></div>`;
+ $('#orders-search').oninput=e=>{search=e.target.value;draw();};
+ $('#orders-filter').onchange=e=>{statusFilter=e.target.value;draw();};
+ draw();
+}
 function confirmAction(title,text){return new Promise(resolve=>{$('#confirm-title').textContent=title;$('#confirm-text').textContent=text;const dialog=$('#confirm-dialog');const done=value=>{dialog.close();$('#confirm-yes').onclick=$('#confirm-no').onclick=null;resolve(value);};$('#confirm-yes').onclick=()=>done(true);$('#confirm-no').onclick=()=>done(false);dialog.oncancel=()=>done(false);dialog.showModal();});}
 async function settings(){let settings;try{settings=await api('settings');}catch(error){toast(error.message);return;}if(view!=='settings')return;$('#content').innerHTML=heading('Configurações','Dados da loja e acesso da equipe.')+`<div class="settings-grid"><form class="card" id="settings-form"><h2>Loja</h2><label class="field">WhatsApp (país + DDD + telefone)<input id="setting-phone" inputmode="numeric" ${publicDemo?'placeholder="Ex.: 55 + DDD + número"':'required'} value="${esc(settings.phone)}"></label><label class="field">Instagram (URL completa)<input id="setting-instagram" type="url" value="${esc(settings.instagram??'https://www.instagram.com/lojaeclipsecp/')}"></label><label class="field">Facebook (URL completa)<input id="setting-facebook" type="url" value="${esc(settings.facebook??'https://www.facebook.com/eclipsecpoficial/')}"></label><label class="field">Endereço da loja<textarea id="setting-address" required maxlength="300">${esc(settings.storeAddress)}</textarea></label><p class="helper">${publicDemo?'Deixe o número vazio para simular. Preencha um número de teste para abrir a mensagem no WhatsApp.':'O rodapé, o mapa e o destino do carrinho usam estes dados após recarregar a loja.'}</p><p id="settings-error" class="error"></p><button class="button" type="submit">Salvar configurações</button></form><form class="card" id="password-form"><h2>Trocar senha</h2><label class="field">Senha atual<input id="password-current" type="password" autocomplete="current-password" required></label><label class="field">Nova senha<input id="password-new" type="password" minlength="12" autocomplete="new-password" required></label><label class="field">Repetir nova senha<input id="password-repeat" type="password" minlength="12" autocomplete="new-password" required></label><p class="helper">Use pelo menos 12 caracteres. Ao trocar, as sessões atuais serão encerradas.</p><p id="password-error" class="error"></p><button class="button outline" type="submit">Atualizar senha</button></form></div>`;
  $('#settings-form').onsubmit=async event=>{event.preventDefault();try{await api('settings',{method:'PUT',body:JSON.stringify({phone:$('#setting-phone').value,storeAddress:$('#setting-address').value,instagram:$('#setting-instagram').value,facebook:$('#setting-facebook').value})});toast('Configurações salvas.');}catch(error){$('#settings-error').textContent=error.message;}};
@@ -621,6 +662,14 @@ function bind(){bindingController?.abort();bindingController=new AbortController
   try{await api('users',{method:'DELETE',body:JSON.stringify({username})});await renderUsers();toast('Usuário removido.');}
   catch(error){toast(error.message);}
  }
+}
+if(button.dataset.orderReady){
+ const code=button.dataset.orderReady,wa=button.dataset.orderWa;
+ try{await api('orders/'+encodeURIComponent(code),{method:'PATCH',body:JSON.stringify({status:'pronto_retirada'})});await reload();ordersView();toast(`Pedido ${code} marcado como pronto para retirada.`);if(wa)window.open(wa,'_blank','noopener');}catch(error){toast(error.message);}
+}
+if(button.dataset.orderFinish){
+ const code=button.dataset.orderFinish;
+ try{await api('orders/'+encodeURIComponent(code),{method:'PATCH',body:JSON.stringify({status:'finalizado'})});await reload();ordersView();toast(`Pedido ${code} finalizado.`);}catch(error){toast(error.message);}
 }
 if(button.dataset.stock)openStock(Number(button.dataset.stock));
 if(button.id==='add-offer'||button.dataset.editPromotion)openPromotion(Number(button.dataset.editPromotion)||0);
@@ -682,7 +731,13 @@ if(button.id==='generate-variants'){
   if($('#adm-menu')?.getAttribute('aria-expanded')==='true'&&!event.target.closest('.sidebar'))setAdminMenu(false);
  });
  listen('input',event=>{const input=event.target;if(input.dataset.variant!==undefined){const v=variants[Number(input.dataset.variant)],field=input.dataset.field;if(field==='color')v.attributes.Cor=input.value;else if(field==='size'){v.attributes.Tamanho=input.value;input.closest('.variant-size').querySelector('summary').textContent=input.value.trim()||'Tamanho';}else if(field==='available'){v.available=input.value==='true';v.max=null;}else v[field]=Number(input.value);}});
- listen('change',async event=>{if(event.target.closest('#p-audiences'))renderCategoryOptions([...$('#p-categories').selectedOptions].map(i=>i.value));if(event.target.hasAttribute('data-color-name')){
+ listen('change',async event=>{
+ if(event.target.dataset.orderStatus){
+  const code=event.target.dataset.orderStatus,status=event.target.value;
+  try{await api('orders/'+encodeURIComponent(code),{method:'PATCH',body:JSON.stringify({status})});await reload();toast(`Status do pedido ${code} atualizado.`);}catch(error){toast(error.message);}
+  return;
+ }
+ if(event.target.closest('#p-audiences'))renderCategoryOptions([...$('#p-categories').selectedOptions].map(i=>i.value));if(event.target.hasAttribute('data-color-name')){
  const input=event.target,oldColor=input.dataset.colorName,newColor=input.value.trim();
  if(!newColor||variants.some(v=>v.attributes.Cor!==oldColor&&v.attributes.Cor.toLowerCase()===newColor.toLowerCase())){
   input.value=oldColor;
