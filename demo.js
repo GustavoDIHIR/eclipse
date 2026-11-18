@@ -43,14 +43,23 @@ window.ECLIPSE_DEMO = { async request(path, options) {
     if(window.ECLIPSE_PUBLIC_ADMIN?.promotions)return window.ECLIPSE_PUBLIC_ADMIN.promotions();
     const today=new Date().toLocaleDateString('en-CA');
     return demoPromotions.filter(p=>p.startDate<=today&&today<=p.endDate).map(p=>{
-      const validIds=p.productIds.filter(id=>catalog.some(item=>item.id===id&&!item.basket));
+      const entries=(p.items||[]).filter(e=>catalog.some(item=>item.id===e.productId&&!item.basket));
+      const validIds=entries.map(e=>e.productId);
       const previewImages=[];
-      for(const id of validIds){
-        const img=catalog.find(item=>item.id===id)?.image;
-        if(img&&!previewImages.includes(img))previewImages.push(img);
-        if(previewImages.length>=4)break;
+      const promoProducts=[];
+      for(const entry of entries){
+        const base=catalog.find(item=>item.id===entry.productId);
+        if(!base)continue;
+        const copyProd=JSON.parse(JSON.stringify(base));
+        for(const v of copyProd.variants){
+          v.price=Math.max(0,Math.round(v.regular*(1-entry.discountPercent/100)*100)/100);
+        }
+        copyProd.sale=true;
+        copyProd.price=Math.min(...copyProd.variants.map(v=>v.price));
+        promoProducts.push(copyProd);
+        if(copyProd.image&&!previewImages.includes(copyProd.image)&&previewImages.length<4)previewImages.push(copyProd.image);
       }
-      return {...p,productIds:validIds,status:'active',productCount:validIds.length,previewImages};
+      return {...p,items:entries,productIds:validIds,status:'active',productCount:validIds.length,previewImages,products:promoProducts};
     });
   };
   if (path === 'promotions') return {promotions: activePromos()};
@@ -80,5 +89,8 @@ window.ECLIPSE_DEMO = { async request(path, options) {
   return {products:products.slice((page-1)*perPage,page*perPage),total:products.length,pages:Math.ceil(products.length/perPage)};
 }};
 const demoPromotions = [
-  {id:1,name:'Seleção Eclipse',startDate:'2026-01-01',endDate:'2027-12-31',discountMode:'percent',discountValue:20,productIds:[9,14,19,24,34,39],createdAt:1760000000}
+  {id:1,name:'Seleção Eclipse',startDate:'2026-01-01',endDate:'2027-12-31',items:[
+    {productId:9,discountPercent:20},{productId:14,discountPercent:20},{productId:19,discountPercent:20},
+    {productId:24,discountPercent:20},{productId:34,discountPercent:20},{productId:39,discountPercent:20}
+  ],productIds:[9,14,19,24,34,39],createdAt:1760000000}
 ];

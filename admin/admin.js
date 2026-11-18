@@ -177,7 +177,13 @@ function renderRows(){
   const all=filteredPromotions(),pages=Math.max(1,Math.ceil(all.length/perPage));page=Math.min(page,pages);
   $('#count').textContent=all.length+(all.length===1?' promoção':' promoções');
   const rows=all.slice((page-1)*perPage,page*perPage);
-  $('#product-list').innerHTML=rows.length?`<div class="table-scroll"><table><thead><tr><th>Promoção</th><th>Período</th><th>Desconto</th><th>Situação</th><th>Ações</th></tr></thead><tbody>${rows.map(p=>`<tr><td><div class="product-cell">${p.previewImages?.[0]?`<img src="${esc(p.previewImages[0])}" alt="">`:''}<div><span class="name">${esc(p.name)}</span><small>${p.productCount} ${p.productCount===1?'produto':'produtos'} · todos os tamanhos</small></div></div></td><td>${formatDateBr(p.startDate)} até ${formatDateBr(p.endDate)}</td><td>${p.discountMode==='percent'?p.discountValue+'%':money(p.discountValue)}</td><td>${promoStatusPill(p.status)}</td><td><div class="row-actions"><button data-edit-promotion="${p.id}">Editar</button><button data-delete-promotion="${p.id}" class="danger">Remover</button></div></td></tr>`).join('')}</tbody></table></div><div class="pagination"><button id="previous" ${page===1?'disabled':''}>← Anterior</button><span>${page} / ${pages}</span><button id="next" ${page===pages?'disabled':''}>Próxima →</button></div>`:'<div class="empty">Nenhuma promoção cadastrada.</div>';
+  const formatPromoDiscounts=p=>{
+   const pcts=(p.items||[]).map(i=>Number(i.discountPercent)).filter(n=>n>0);
+   if(!pcts.length)return p.discountValue?p.discountValue+'%':'—';
+   const min=Math.min(...pcts),max=Math.max(...pcts);
+   return min===max?min+'%':min+'% a '+max+'%';
+  };
+  $('#product-list').innerHTML=rows.length?`<div class="table-scroll"><table><thead><tr><th>Promoção</th><th>Período</th><th>Desconto</th><th>Situação</th><th>Ações</th></tr></thead><tbody>${rows.map(p=>`<tr><td><div class="product-cell">${p.previewImages?.[0]?`<img src="${esc(p.previewImages[0])}" alt="">`:''}<div><span class="name">${esc(p.name)}</span><small>${p.productCount} ${p.productCount===1?'produto':'produtos'} · todos os tamanhos</small></div></div></td><td>${formatDateBr(p.startDate)} até ${formatDateBr(p.endDate)}</td><td>${formatPromoDiscounts(p)}</td><td>${promoStatusPill(p.status)}</td><td><div class="row-actions"><button data-edit-promotion="${p.id}">Editar</button><button data-delete-promotion="${p.id}" class="danger">Remover</button></div></td></tr>`).join('')}</tbody></table></div><div class="pagination"><button id="previous" ${page===1?'disabled':''}>← Anterior</button><span>${page} / ${pages}</span><button id="next" ${page===pages?'disabled':''}>Próxima →</button></div>`:'<div class="empty">Nenhuma promoção cadastrada.</div>';
   return;
  }
  const all=filtered(),pages=Math.max(1,Math.ceil(all.length/perPage));page=Math.min(page,pages);$('#count').textContent=all.length+' modelos';const rows=all.slice((page-1)*perPage,page*perPage);$('#product-list').innerHTML=rows.length?`<div class="table-scroll"><table><thead><tr><th>Produto</th><th>Preço</th><th>Disponibilidade</th><th>Situação</th><th>Ações</th></tr></thead><tbody>${rows.map(p=>`<tr><td><div class="product-cell">${p.image?`<img src="${esc(p.image)}" alt="">`:''}<div><span class="name">${esc(p.name)}</span><small>${esc(p.sku)} · ${esc(p.brand)}</small></div></div></td><td>${money(p.price)}${p.sale?`<small>De ${money(p.regular)}</small>`:''}</td><td>${totalStock(p)} de ${p.variants.length} combinações disponíveis</td><td>${p.published===false?'<span class="pill gray">Oculto</span>':p.available?'<span class="pill">Publicado</span>':'<span class="pill orange">Esgotado</span>'}${p.sale?'<small>Oferta</small>':''}${p.isNew?'<small>Lançamento</small>':''}</td><td><div class="row-actions">${view==='products'?`<button data-edit="${p.id}">Editar</button><button data-delete="${p.id}" class="danger">Remover</button>`:view==='stock'?`<button data-stock="${p.id}">Alterar disponibilidade</button>`:view==='offers'?(p.basket?`<button data-edit-combo="${p.id}">Editar combo</button><button data-delete="${p.id}">Remover combo</button>`:''):new Date(p.arrivedAt*1000).toLocaleDateString('pt-BR')}</div></td></tr>`).join('')}</tbody></table></div><div class="pagination"><button id="previous" ${page===1?'disabled':''}>← Anterior</button><span>${page} / ${pages}</span><button id="next" ${page===pages?'disabled':''}>Próxima →</button></div>`:'<div class="empty">Nenhum produto encontrado.</div>';
@@ -289,9 +295,10 @@ function openStock(id) {
 }
 function openPromotion(id=0) {
  const promo=promotions.find(p=>p.id===id);
- const selected=new Set(promo?.productIds||[]);
+ const initialEntries=Array.isArray(promo?.items)?promo.items:(promo?.productIds||[]).map(productId=>({productId,discountPercent:promo.discountValue||10}));
+ const selected=new Map(initialEntries.map(e=>[e.productId,Number(e.discountPercent)]));
  const eligible=products.filter(p=>!p.basket&&(selected.has(p.id)||p.published!==false));
- const missing=[...selected].filter(pid=>!eligible.some(p=>p.id===pid));
+ const missing=[...selected.keys()].filter(pid=>!eligible.some(p=>p.id===pid));
  for(const pid of missing)selected.delete(pid);
  const normalize=value=>value.normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase();
  const today=new Date().toLocaleDateString('en-CA');
@@ -301,11 +308,22 @@ function openPromotion(id=0) {
    <label class="field full">Nome da promoção<input id="promo-name" required maxlength="180" value="${esc(promo?.name||'')}"></label>
    <label class="field">Data de início<input id="promo-start" type="date" required value="${esc(promo?.startDate||today)}"></label>
    <label class="field">Data final<input id="promo-end" type="date" required value="${esc(promo?.endDate||today)}"></label>
-   <label class="field">Tipo de desconto<select id="promo-mode"><option value="percent" ${promo?.discountMode==='amount'?'':'selected'}>Porcentagem (%)</option><option value="amount" ${promo?.discountMode==='amount'?'selected':''}>Valor em reais (R$)</option></select></label>
-   <label class="field">Desconto<input id="promo-value" type="number" min="0.01" step="0.01" required value="${promo?.discountValue??''}"></label>
   </div>
-  <p class="helper">Todos os tamanhos disponíveis de cada produto selecionado são incluídos automaticamente.</p>
+  <p class="helper">Ao marcar um produto, informe a porcentagem de desconto dele. Todos os tamanhos disponíveis serão incluídos automaticamente.</p>
   ${missing.length?'<p class="notice">Um ou mais produtos foram removidos do catálogo. Revise a seleção antes de salvar.</p>':''}
+  <div id="promo-item-panel" class="card" hidden style="margin-bottom:12px;border:2px solid #161816;padding:14px">
+   <h3 id="promo-item-title" style="margin:0 0 6px"></h3>
+   <p id="promo-item-base" class="helper" style="margin:0 0 10px"></p>
+   <div class="editor-grid">
+    <label class="field">Porcentagem de desconto (%)<input id="promo-item-pct" type="number" min="0.01" max="100" step="0.01" placeholder="Ex.: 20"></label>
+    <div style="display:flex;align-items:flex-end"><p id="promo-item-preview" class="notice" style="margin:0;width:100%"></p></div>
+   </div>
+   <p id="promo-item-error" class="error" role="alert"></p>
+   <div class="checks" style="margin-top:8px">
+    <button type="button" id="promo-item-cancel" class="button outline">Cancelar</button>
+    <button type="button" id="promo-item-confirm" class="button lime">Aplicar desconto</button>
+   </div>
+  </div>
   <div class="combo-workspace">
    <section aria-labelledby="promo-count">
     <h3 id="promo-count" role="status"></h3>
@@ -319,25 +337,64 @@ function openPromotion(id=0) {
    const name=$('#promo-name').value.trim();
    const startDate=$('#promo-start').value;
    const endDate=$('#promo-end').value;
-   const discountMode=$('#promo-mode').value;
-   const discountValue=Number($('#promo-value').value);
    if(!name)throw Error('Informe o nome da promoção.');
    if(!startDate||!endDate)throw Error('Informe as datas de início e fim.');
    if(endDate<startDate)throw Error('A data final deve ser igual ou posterior à data de início.');
-   if(!(discountValue>0)||(discountMode==='percent'&&discountValue>100))throw Error('Informe um desconto válido.');
    if(!selected.size)throw Error('Selecione pelo menos um produto para a promoção.');
-   const payload={name,startDate,endDate,discountMode,discountValue,productIds:[...selected]};
+   const payload={name,startDate,endDate,items:[...selected].map(([productId,discountPercent])=>({productId,discountPercent}))};
    return promo?api('promotions/'+promo.id,{method:'PUT',body:JSON.stringify(payload)}):api('promotions',{method:'POST',body:JSON.stringify(payload)});
  },'combo');
 
  const marked=$('#promo-selected'),list=$('#promo-list'),searchBox=$('#promo-search');
+ const panel=$('#promo-item-panel'),pctInput=$('#promo-item-pct'),itemPreview=$('#promo-item-preview'),itemError=$('#promo-item-error');
+ let pendingId=0;
+
+ const updateItemPreview=()=>{
+  const prod=eligible.find(p=>p.id===pendingId);
+  const pct=Number(pctInput.value);
+  if(!prod||!(pct>0&&pct<=100)){itemPreview.textContent='Informe uma porcentagem entre 0,01% e 100%.';return;}
+  const discounted=Math.max(0,Math.round(prod.regular*(1-pct/100)*100)/100);
+  itemPreview.textContent=`De ${money(prod.regular)} por ${money(discounted)} (-${pct}%)`;
+ };
+ const openItemDiscount=pid=>{
+  const prod=eligible.find(p=>p.id===pid);
+  if(!prod)return;
+  pendingId=pid;
+  $('#promo-item-title').textContent=prod.name;
+  $('#promo-item-base').textContent=`${prod.sku} · Preço normal: ${money(prod.regular)} · Todos os tamanhos incluídos`;
+  pctInput.value=selected.has(pid)?String(selected.get(pid)):'';
+  itemError.textContent='';
+  panel.hidden=false;
+  updateItemPreview();
+  pctInput.focus();
+ };
+ pctInput.oninput=updateItemPreview;
+ $('#promo-item-cancel').onclick=()=>{
+  panel.hidden=true;
+  pendingId=0;
+  drawMarked();
+  drawAvailable();
+ };
+ $('#promo-item-confirm').onclick=()=>{
+  const pct=Math.round(Number(pctInput.value)*100)/100;
+  if(!(pct>0&&pct<=100)){itemError.textContent='Informe uma porcentagem válida entre 0,01% e 100%.';pctInput.focus();return;}
+  selected.set(pendingId,pct);
+  panel.hidden=true;
+  pendingId=0;
+  $('#editor-error').textContent='';
+  drawMarked();
+  drawAvailable();
+ };
  const row=product=>{
   const checked=selected.has(product.id);
+  const pct=selected.get(product.id);
+  const discounted=checked?Math.max(0,Math.round(product.regular*(1-pct/100)*100)/100):product.regular;
   return `<div class="basket-row">
    <div class="basket-line">
     <label class="basket-check"><input type="checkbox" data-promo-product="${product.id}" ${checked?'checked':''}>
-     <span>${esc(product.name)}<small>${esc(product.sku)} · ${money(product.regular)}</small></span>
+     <span>${esc(product.name)}<small>${esc(product.sku)} · ${checked?`${money(product.regular)} → ${money(discounted)} (${pct}% OFF)`:money(product.regular)}</small></span>
     </label>
+    ${checked?`<button type="button" class="text-button" data-promo-edit-item="${product.id}">Alterar %</button>`:''}
    </div>
   </div>`;
  };
@@ -356,11 +413,20 @@ function openPromotion(id=0) {
  const change=event=>{
   const pid=Number(event.target.dataset.promoProduct);
   if(!pid)return;
-  if(event.target.checked)selected.add(pid);
-  else selected.delete(pid);
-  $('#editor-error').textContent='';
-  drawMarked();
-  drawAvailable();
+  if(event.target.checked){
+   event.target.checked=false;
+   openItemDiscount(pid);
+  }else{
+   selected.delete(pid);
+   if(pendingId===pid){panel.hidden=true;pendingId=0;}
+   $('#editor-error').textContent='';
+   drawMarked();
+   drawAvailable();
+  }
+ };
+ marked.onclick=event=>{
+  const btn=event.target.closest('[data-promo-edit-item]');
+  if(btn)openItemDiscount(Number(btn.dataset.promoEditItem));
  };
  list.onchange=marked.onchange=change;
  searchBox.oninput=drawAvailable;

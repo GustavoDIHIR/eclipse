@@ -171,26 +171,13 @@
     </div>`;
   };
   const formatDateBr=iso=>{if(!iso)return '';const [y,m,d]=String(iso).split('-');return y&&m&&d?`${d}/${m}/${y}`:iso;};
-  const promoDiscountLabel=p=>p.discountMode==='percent'?`${p.discountValue}% OFF`:`${money(p.discountValue)} OFF`;
-  const promoCard=p=>{
-    const imgs=(p.previewImages||[]).filter(validPhoto).slice(0,4);
-    const media=imgs.length>1
-      ?`<div class="ec-collection-collage">${imgs.map(src=>`<img src="${escape(src)}" alt="" loading="lazy">`).join('')}</div>`
-      :imgs[0]?`<img src="${escape(imgs[0])}" alt="" loading="lazy">`:'<div class="ec-no-image">Sem foto</div>';
-    return `<article class="ec-card ec-offer-card ec-collection-card">
-      <a class="ec-product-image ec-collection-link" href="#ofertas?colecao=${p.id}" aria-label="Ver coleção ${escape(p.name)}">
-        ${media}
-        <span class="ec-sale-tag">${escape(promoDiscountLabel(p))}</span>
-        <span class="ec-card-arrow">↗</span>
-      </a>
-      <div class="ec-card-info">
-        <p>COLEÇÃO EM OFERTA · ${p.productCount} ${p.productCount===1?'PEÇA':'PEÇAS'}</p>
-        <a class="ec-product-name ec-collection-link" href="#ofertas?colecao=${p.id}">${escape(p.name)}</a>
-        <div class="ec-offer-price"><small>Válida de ${escape(formatDateBr(p.startDate))} até ${escape(formatDateBr(p.endDate))}</small></div>
-        <span class="ec-card-hint">Ver todos os produtos da coleção ↗</span>
-      </div>
-    </article>`;
-  };
+  const promoSection=p=>`<section class="ec-promo-row" aria-label="${escape(p.name)}">
+    <div class="ec-promo-row-head">
+      <h3 class="ec-promo-row-title">${escape(p.name)}</h3>
+      <small class="ec-promo-row-dates">Válida de ${escape(formatDateBr(p.startDate))} até ${escape(formatDateBr(p.endDate))}</small>
+    </div>
+    <div class="ec-grid ec-promo-row-grid">${(p.products||[]).map(card).join('')||'<p class="ec-loading">Nenhum produto disponível nesta promoção.</p>'}</div>
+  </section>`;
   const card=p=>`<article class="ec-card ${p.sale?'ec-offer-card':''}">${p.basketOptions?.length?comboCarousel(p,true):`<button class="ec-product-open ec-product-image" data-id="${p.id}" aria-label="Ver ${escape(p.name)}">${imageFor(p)}${p.basket?'<span class="ec-sale-tag">COMBO</span>':p.sale?'<span class="ec-sale-tag">OFERTA</span>':p.isNew?'<span class="ec-new-tag">ACABOU DE CHEGAR</span>':''}<span class="ec-card-arrow">↗</span></button>`}<div class="ec-card-info"><p>${escape([...new Set(p.categories||[])].join(' / '))}</p><button class="ec-product-open ec-product-name" data-id="${p.id}">${escape(p.name)}</button>${p.sale?offerPrice(p):`<div class="ec-price"><strong>${money(p.price)}</strong></div>`}<span class="ec-card-hint">${p.available?(p.basketOptions?'Escolha o tamanho de cada peça':'Escolha sua cor e tamanho'):'Esgotado'}</span></div></article>`;
   root.innerHTML=`<div class="ec-app ec-store-v2">
     <div class="ec-top"><span>Cachoeira Paulista · SP</span><span>${cfg.demo?'AMBIENTE DE DEMONSTRAÇÃO':'ENVIO PARA TODO O BRASIL'}</span></div>
@@ -313,16 +300,18 @@
     $('.ec-search input').value='';$('#ec-in-stock').checked=false;
     root.querySelectorAll('.ec-nav-dept[open]').forEach(d=>d.open=false);
     const home=state.view==='home';$('#ec-launches').hidden=!home;$('#ec-campaign').hidden=!home;$('#ec-offer-feature').hidden=!home;$('#ec-back-home').hidden=home;
-    const isCollectionList=state.view==='offers'&&state.offerType==='promotions'&&!state.promotionId;
+    const isPromoRows=state.view==='offers'&&state.offerType==='promotions';
     $('#ec-catalog').classList.toggle('ec-offers-page',state.view==='offers');
+    $('#ec-grid').classList.toggle('ec-promo-rows',isPromoRows);
     const publicName=audiences.find(([s])=>s===state.audience)?.[1]||'';
     $('#ec-catalog-title').textContent=(state.view==='offers'?'OFERTAS':state.view==='new'?'LANÇAMENTOS':'CATÁLOGO')+(publicName?' · '+publicName:'');
     $('#ec-catalog-eyebrow').textContent=state.view==='offers'?'PREÇOS ESPECIAIS · SELEÇÃO ECLIPSE':'ENCONTRE SEU PRÓXIMO FAVORITO';
     $('#ec-offer-bar').hidden=state.view!=='offers';
     $('#ec-offer-types').hidden=state.view!=='offers';
-    $('.ec-offer-order').hidden=isCollectionList;
-    $('.ec-tools').hidden=isCollectionList;
-    $('#ec-in-stock').closest('label').hidden=isCollectionList;
+    $('.ec-offer-order').hidden=isPromoRows;
+    $('.ec-tools').hidden=isPromoRows;
+    $('#ec-in-stock').closest('label').hidden=isPromoRows;
+    $('.ec-pagination').hidden=isPromoRows;
     $('#ec-offer-order').value=state.order;
     root.querySelectorAll('[data-offer-type]').forEach(link=>{
       link.classList.toggle('is-active',link.dataset.offerType===state.offerType);
@@ -387,36 +376,26 @@
   async function load(){
     const turn=++listSequence;$('#ec-grid').innerHTML='<p class="ec-loading">Carregando…</p>';$('#ec-grid').setAttribute('aria-busy','true');$('#ec-prev').disabled=$('#ec-next').disabled=true;
     try{
-      if(state.view==='offers'&&state.offerType==='promotions'&&!state.promotionId){
+      if(state.view==='offers'&&state.offerType==='promotions'){
         const data=await request('promotions');
         if(turn!==listSequence)return;
-        const promos=data.promotions||[];
+        const promos=(data.promotions||[]).filter(p=>(p.products||[]).length);
         pages=1;
-        $('#ec-results').textContent=`${promos.length} ${promos.length===1?'coleção em oferta':'coleções em oferta'}`;
-        $('#ec-grid').innerHTML=promos.map(promoCard).join('')||'<div class="ec-empty"><h3>Nenhuma coleção em promoção no momento.</h3><p>As próximas promoções aparecerão aqui.</p></div>';
+        $('#ec-results').textContent=`${promos.length} ${promos.length===1?'promoção ativa':'promoções ativas'}`;
+        $('#ec-grid').innerHTML=promos.map(promoSection).join('')||'<div class="ec-empty"><h3>Nenhuma promoção ativa no momento.</h3><p>As próximas promoções aparecerão aqui.</p></div>';
         animateIn($('#ec-grid'),8);
         $('#ec-page').textContent='1 / 1';$('#ec-prev').disabled=$('#ec-next').disabled=true;
         return;
-      }
-      let activePromo=null;
-      if(state.view==='offers'&&state.offerType==='promotions'&&state.promotionId){
-        activePromo=await request('promotions/'+state.promotionId);
-        if(turn!==listSequence)return;
-        const publicName=audiences.find(([s])=>s===state.audience)?.[1]||'';
-        $('#ec-catalog-title').textContent=activePromo.name+(publicName?' · '+publicName:'');
-        $('#ec-catalog-eyebrow').textContent=`COLEÇÃO EM OFERTA · ${promoDiscountLabel(activePromo)} · ${formatDateBr(activePromo.startDate)} A ${formatDateBr(activePromo.endDate)}`;
       }
       const scope=state.view==='offers'?'offers':state.view==='new'?'new':'all';
       const group=state.category.match(/^grupo-(\d+)$/);
       const category=group?(departments[state.audience]?.groups[Number(group[1])]?.items||[]).map(item=>item.slug).join(','):state.category;
       const params=new URLSearchParams({scope,offerType:state.view==='offers'?state.offerType:'',order:state.order||'recent',audience:activeAudience(),category,search:state.search,page:state.page,stock:state.stock?'1':'0'});
-      if(state.view==='offers'&&state.offerType==='promotions'&&state.promotionId)params.set('promotionId',String(state.promotionId));
       const data=await listProducts(params,turn);
       if(turn!==listSequence)return;
       const products=await Promise.all(data.products.map(withComboPhotos));
       if(turn!==listSequence)return;pages=Number(data.pages)||1;
-      const backLink=activePromo?'<a class="ec-collection-link ec-text-link" href="#ofertas">← Todas as coleções</a> ':'';
-      $('#ec-results').innerHTML=backLink+`${data.total} ${data.total===1?'produto':'produtos'}`;
+      $('#ec-results').textContent=`${data.total} ${data.total===1?'produto':'produtos'}`;
       const isComboPage=state.view==='offers'&&state.offerType==='combos';
       const hasFilters=Boolean(state.audience||state.category||state.search||state.stock);
       const emptyTitle=isComboPage?'Nenhum combo encontrado.':'Nenhum produto encontrado.';
@@ -521,8 +500,10 @@
         .sort((a,b)=>offerDate(b)-offerDate(a)||b.id-a.id).slice(0,6);
       const activePromos=promoData.promotions||[];
       rememberPair(prefix+':arrivals',arrivals);
+      const promoProducts=activePromos.flatMap(p=>p.products||[]).filter(p=>audience?matchesPreference(p,audience):true);
+      const homeOffers=(promoProducts.length?promoProducts:offers).slice(0,6);
       $('#ec-new-grid').innerHTML=arrivals.map(card).join('')||'<p class="ec-loading">Ofertas chegam em breve.</p>';
-      $('#ec-offer-grid').innerHTML=(activePromos.length?activePromos.slice(0,6).map(promoCard).join(''):offers.map(card).join(''))||'<p class="ec-loading">Ofertas chegam em breve.</p>';
+      $('#ec-offer-grid').innerHTML=homeOffers.map(card).join('')||'<p class="ec-loading">Ofertas chegam em breve.</p>';
       const campaignPool=catalogPool.filter(p=>!arrivals.some(n=>n.id===p.id));
       const campaign=selectDistinctPair(campaignPool,audience,previousPair(prefix+':campaign'));
       rememberPair(prefix+':campaign',campaign);

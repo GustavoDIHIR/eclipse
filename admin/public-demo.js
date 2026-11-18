@@ -74,12 +74,16 @@
   if(today>promo.endDate)return 'ended';
   return 'active';
  }
- function applyPromotionDiscount(product,promo){
-  const mode=promo.discountMode,val=Number(promo.discountValue);
+ function promotionItems(promo){
+  if(Array.isArray(promo.items))return promo.items;
+  const pct=Number(promo.discountValue||0);
+  return (promo.productIds||[]).map(productId=>({productId,discountPercent:pct}));
+ }
+ function applyPromotionDiscount(product,promo,entry){
+  const pct=Number(entry.discountPercent??promo.discountValue??0);
   for(const v of product.variants){
    const reg=Number(v.regular);
-   const deduction=mode==='percent'?reg*val/100:val;
-   v.price=Math.max(0,money(reg-deduction));
+   v.price=Math.max(0,money(reg*(1-pct/100)));
   }
   product.sale=true;
   product.price=Math.min(...product.variants.map(v=>v.price));
@@ -92,43 +96,50 @@
   const startDate=String(data.startDate||'').trim(),endDate=String(data.endDate||'').trim();
   if(!/^\d{4}-\d{2}-\d{2}$/.test(startDate)||!/^\d{4}-\d{2}-\d{2}$/.test(endDate))throw Error('Informe datas de início e fim válidas.');
   if(endDate<startDate)throw Error('A data final deve ser igual ou posterior à data de início.');
-  const discountMode=data.discountMode;
-  if(!['percent','amount'].includes(discountMode))throw Error('Tipo de desconto inválido.');
-  const discountValue=money(data.discountValue);
-  if(!(discountValue>0)||(discountMode==='percent'&&discountValue>100))throw Error('Informe um desconto válido.');
-  if(!Array.isArray(data.productIds)||!data.productIds.length)throw Error('Selecione pelo menos um produto para a promoção.');
-  const productIds=[...new Set(data.productIds.map(Number))];
-  for(const pid of productIds){
+  const rawItems=Array.isArray(data.items)?data.items:(Array.isArray(data.productIds)?data.productIds.map(productId=>({productId,discountPercent:data.discountValue})):null);
+  if(!rawItems||!rawItems.length)throw Error('Selecione pelo menos um produto para a promoção.');
+  const seen=new Set(),items=[];
+  for(const entry of rawItems){
+   const pid=Number(entry?.productId);
+   if(!Number.isSafeInteger(pid)||seen.has(pid))continue;
+   seen.add(pid);
    const member=products.find(p=>p.id===pid&&!p.basket);
    if(!member)throw Error('Um ou mais produtos selecionados não estão disponíveis para promoção.');
-   if(discountMode==='amount'&&member.variants.some(v=>v.regular<discountValue))throw Error(`O desconto excede o preço normal de "${member.name}".`);
+   const pct=money(entry.discountPercent);
+   if(!(pct>0&&pct<=100))throw Error(`Informe uma porcentagem de desconto válida para "${member.name}".`);
+   items.push({productId:pid,discountPercent:pct});
   }
-  return {id,name,startDate,endDate,discountMode,discountValue,productIds,createdAt:old?.createdAt||Math.floor(Date.now()/1000)};
+  if(!items.length)throw Error('Selecione pelo menos um produto para a promoção.');
+  return {id,name,startDate,endDate,items,productIds:items.map(i=>i.productId),createdAt:old?.createdAt||Math.floor(Date.now()/1000)};
  }
  function enrichedPromotions(state,activeOnly=false){
   const byId=new Map(state.products.filter(p=>!p.basket&&(!activeOnly||p.published!==false)).map(p=>[p.id,p]));
   return (state.promotions||[]).slice().sort((a,b)=>b.id-a.id).map(promo=>{
    const status=promoStatus(promo);
    if(activeOnly&&status!=='active')return null;
-   const validIds=(promo.productIds||[]).filter(id=>byId.has(id));
+   const validEntries=promotionItems(promo).filter(e=>byId.has(e.productId));
+   const validIds=validEntries.map(e=>e.productId);
    const previewImages=[];
-   for(const id of validIds){
-    const img=byId.get(id)?.image;
-    if(img&&!previewImages.includes(img))previewImages.push(img);
-    if(previewImages.length>=4)break;
+   const promoProducts=[];
+   for(const entry of validEntries){
+    const base=byId.get(entry.productId);
+    const copyProd=copy(base);
+    applyPromotionDiscount(copyProd,promo,entry);
+    if(activeOnly)promoProducts.push(copyProd);
+    if(copyProd.image&&!previewImages.includes(copyProd.image)&&previewImages.length<4)previewImages.push(copyProd.image);
    }
-   return {...promo,productIds:validIds,status,productCount:validIds.length,previewImages};
+   return {...promo,items:validEntries,productIds:validIds,status,productCount:validIds.length,previewImages,...(activeOnly?{products:promoProducts}:{})};
   }).filter(Boolean);
  }
  function catalog(state){
   const records=copy(state.products),index=new Map(records.map(p=>[p.id,p]));
   for(const promo of (state.promotions||[])){
    if(promoStatus(promo)!=='active')continue;
-   for(const pid of (promo.productIds||[])){
-    const product=index.get(pid);
+   for(const entry of promotionItems(promo)){
+    const product=index.get(entry.productId);
     if(!product||product.basket)continue;
     const candidate=copy(product);
-    applyPromotionDiscount(candidate,promo);
+    applyPromotionDiscount(candidate,promo,entry);
     if(!product.promotionId||candidate.price<product.price)Object.assign(product,candidate);
    }
   }
