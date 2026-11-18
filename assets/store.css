@@ -360,6 +360,7 @@
 }
 /* Unified layout alignment for PC and Mobile */
 #eclipse-store .ec-card{display:flex;flex-direction:column;height:100%}
+#eclipse-store .ec-card .ec-product-image{flex:none}
 #eclipse-store .ec-card-info{display:flex;flex-direction:column;flex:1;padding-top:10px;gap:4px}
 #eclipse-store .ec-card-info .ec-product-name{text-align:left}
 #eclipse-store .ec-card-hint{margin-top:auto;padding-top:4px}
@@ -389,10 +390,12 @@
  #eclipse-store .ec-personal-bar{padding:10px 14px;gap:4px;align-items:flex-start}
  #eclipse-store .ec-section-head{flex-direction:column;align-items:flex-start;gap:6px;margin-bottom:12px}
  #eclipse-store .ec-section-head :is(h1,h2){font-size:clamp(1.3rem,6vw,1.65rem);line-height:1.15;letter-spacing:-.5px}
- #eclipse-store #ec-offer-bar:not([hidden]){display:flex;flex-direction:column;align-items:stretch;gap:10px;margin-bottom:14px}
- #eclipse-store #ec-offer-types{order:0;width:100%;display:grid;grid-template-columns:1fr 1fr;gap:8px;justify-content:stretch}
- #eclipse-store #ec-offer-types a{width:100%;font-size:13px;padding:10px 12px;min-height:44px;text-align:center}
+ #eclipse-store .ec-offers-page>.ec-section-head{padding:18px 14px;margin-bottom:16px}
+ #eclipse-store #ec-offer-bar:not([hidden]){display:flex;flex-direction:column;align-items:flex-start;gap:10px;margin-bottom:14px}
+ #eclipse-store #ec-offer-types{order:0;width:auto;display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-start}
+ #eclipse-store #ec-offer-types a{width:auto;font-size:12px;padding:8px 16px;min-height:40px;text-align:center}
  #eclipse-store .ec-offer-order{order:1;width:100%;justify-content:space-between}
+ #eclipse-store #ec-offer-grid{padding:16px 14px 24px}
  #eclipse-store .ec-tools{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px;margin-top:12px}
  #eclipse-store .ec-tools .ec-search{display:flex;align-items:center;gap:6px;width:100%;min-width:0}
  #eclipse-store .ec-tools .ec-search input{flex:1;min-width:0;width:100%;font-size:15px}
