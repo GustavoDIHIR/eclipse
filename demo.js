@@ -39,9 +39,31 @@ window.ECLIPSE_DEMO = { async request(path, options) {
     if (!product) throw Error('Produto indisponível.');
     return product;
   }
+  const activePromos=()=> {
+    if(window.ECLIPSE_PUBLIC_ADMIN?.promotions)return window.ECLIPSE_PUBLIC_ADMIN.promotions();
+    const today=new Date().toLocaleDateString('en-CA');
+    return demoPromotions.filter(p=>p.startDate<=today&&today<=p.endDate).map(p=>{
+      const validIds=p.productIds.filter(id=>catalog.some(item=>item.id===id&&!item.basket));
+      const previewImages=[];
+      for(const id of validIds){
+        const img=catalog.find(item=>item.id===id)?.image;
+        if(img&&!previewImages.includes(img))previewImages.push(img);
+        if(previewImages.length>=4)break;
+      }
+      return {...p,productIds:validIds,status:'active',productCount:validIds.length,previewImages};
+    });
+  };
+  if (path === 'promotions') return {promotions: activePromos()};
+  if (path.startsWith('promotions/')) {
+    const promo=activePromos().find(p=>p.id===Number(path.split('/')[1]));
+    if (!promo) throw Error('Promoção indisponível.');
+    return promo;
+  }
   const q=new URLSearchParams(path.split('?')[1]);
   const categoryKeys=(q.get('category')||'').split(',').filter(Boolean);
-  let products=catalog.filter(p=>(!q.get('audience')||p.audiences.includes(q.get('audience')))&&(!categoryKeys.length||categoryKeys.some(key=>p.categoryKeys.includes(key)))&&(!q.get('search')||p.name.toLocaleLowerCase('pt-BR').includes(q.get('search').toLocaleLowerCase('pt-BR'))));
+  const promoId=Number(q.get('promotionId'))||0;
+  const promoFilter=promoId?activePromos().find(p=>p.id===promoId):null;
+  let products=catalog.filter(p=>(!promoId||(promoFilter&&promoFilter.productIds.includes(p.id)))&&(!q.get('audience')||p.audiences.includes(q.get('audience')))&&(!categoryKeys.length||categoryKeys.some(key=>p.categoryKeys.includes(key)))&&(!q.get('search')||p.name.toLocaleLowerCase('pt-BR').includes(q.get('search').toLocaleLowerCase('pt-BR'))));
   if(q.get('scope')==='offers'){
     products=products.filter(p=>p.sale);
     const type=q.get('offerType');
@@ -57,3 +79,6 @@ window.ECLIPSE_DEMO = { async request(path, options) {
   const perPage=Math.min(24,Math.max(1,Number(q.get('limit'))||24)), page=Math.max(1,Number(q.get('page'))||1);
   return {products:products.slice((page-1)*perPage,page*perPage),total:products.length,pages:Math.ceil(products.length/perPage)};
 }};
+const demoPromotions = [
+  {id:1,name:'Seleção Eclipse',startDate:'2026-01-01',endDate:'2027-12-31',discountMode:'percent',discountValue:20,productIds:[9,14,19,24,34,39],createdAt:1760000000}
+];

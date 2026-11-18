@@ -3,12 +3,16 @@
  const key='eclipse-public-admin-v1';
  const sessionKey=key+':session';
  const copy=value=>JSON.parse(JSON.stringify(value));
- const defaults=()=>({products:copy(demoProducts),users:{admin:'admin'},settings:{
+ const defaults=()=>({products:copy(demoProducts),promotions:copy(typeof demoPromotions!=='undefined'?demoPromotions:[]),users:{admin:'admin'},settings:{
   phone:'',storeAddress:'Rua Dr. Bernardino de Campos, 220 — Centro, Cachoeira Paulista/SP',
   instagram:'https://www.instagram.com/lojaeclipsecp/',facebook:'https://www.facebook.com/eclipsecpoficial/'
  }});
  function read(){
-  try{return JSON.parse(localStorage.getItem(key))||defaults();}catch{return defaults();}
+  try{
+   const state=JSON.parse(localStorage.getItem(key))||defaults();
+   if(!Array.isArray(state.promotions))state.promotions=copy(typeof demoPromotions!=='undefined'?demoPromotions:[]);
+   return state;
+  }catch{return defaults();}
  }
  function save(state){
   try{localStorage.setItem(key,JSON.stringify(state));}
@@ -51,8 +55,9 @@
   if(!Array.isArray(data.basket)||data.basket.length<2||data.basket.length>20)throw Error('Escolha de 2 a 20 produtos.');
   const selected=data.basket.map(entry=>{
    const product=products.find(p=>p.id===entry.id&&!p.basket&&p.published!==false);
-   const variants=product?.variants.filter(v=>entry.variantIds.includes(v.id));
-   if(!variants?.length)throw Error('Escolha pelo menos um tamanho por produto.');
+   const allowed=Array.isArray(entry.variantIds)?entry.variantIds:(product?.variants.filter(v=>v.available).map(v=>v.id)||[]);
+   const variants=product?.variants.filter(v=>allowed.includes(v.id));
+   if(!variants?.length)throw Error('O produto selecionado precisa ter pelo menos um tamanho disponível.');
    return {product,variants};
   });
   const first=selected[0].product;
@@ -63,8 +68,70 @@
    description:'Inclui: '+selected.map(({product})=>product.name).join(', '),images:[first.image],
    variants:[{id:old?.variants?.[0]?.id,attributes:{Cor:'Conjunto',Tamanho:'Único'},regular,price:data.price,available:true}]},id,old);
  }
+ function promoStatus(promo){
+  const today=new Date().toLocaleDateString('en-CA');
+  if(today<promo.startDate)return 'scheduled';
+  if(today>promo.endDate)return 'ended';
+  return 'active';
+ }
+ function applyPromotionDiscount(product,promo){
+  const mode=promo.discountMode,val=Number(promo.discountValue);
+  for(const v of product.variants){
+   const reg=Number(v.regular);
+   const deduction=mode==='percent'?reg*val/100:val;
+   v.price=Math.max(0,money(reg-deduction));
+  }
+  product.sale=true;
+  product.price=Math.min(...product.variants.map(v=>v.price));
+  product.promotionId=promo.id;
+  product.promotionName=promo.name;
+ }
+ function preparePromotion(data,id,old,products){
+  const name=String(data.name||'').trim();
+  if(!name||name.length>180)throw Error('Informe o nome da promoção (até 180 caracteres).');
+  const startDate=String(data.startDate||'').trim(),endDate=String(data.endDate||'').trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(startDate)||!/^\d{4}-\d{2}-\d{2}$/.test(endDate))throw Error('Informe datas de início e fim válidas.');
+  if(endDate<startDate)throw Error('A data final deve ser igual ou posterior à data de início.');
+  const discountMode=data.discountMode;
+  if(!['percent','amount'].includes(discountMode))throw Error('Tipo de desconto inválido.');
+  const discountValue=money(data.discountValue);
+  if(!(discountValue>0)||(discountMode==='percent'&&discountValue>100))throw Error('Informe um desconto válido.');
+  if(!Array.isArray(data.productIds)||!data.productIds.length)throw Error('Selecione pelo menos um produto para a promoção.');
+  const productIds=[...new Set(data.productIds.map(Number))];
+  for(const pid of productIds){
+   const member=products.find(p=>p.id===pid&&!p.basket);
+   if(!member)throw Error('Um ou mais produtos selecionados não estão disponíveis para promoção.');
+   if(discountMode==='amount'&&member.variants.some(v=>v.regular<discountValue))throw Error(`O desconto excede o preço normal de "${member.name}".`);
+  }
+  return {id,name,startDate,endDate,discountMode,discountValue,productIds,createdAt:old?.createdAt||Math.floor(Date.now()/1000)};
+ }
+ function enrichedPromotions(state,activeOnly=false){
+  const byId=new Map(state.products.filter(p=>!p.basket&&(!activeOnly||p.published!==false)).map(p=>[p.id,p]));
+  return (state.promotions||[]).slice().sort((a,b)=>b.id-a.id).map(promo=>{
+   const status=promoStatus(promo);
+   if(activeOnly&&status!=='active')return null;
+   const validIds=(promo.productIds||[]).filter(id=>byId.has(id));
+   const previewImages=[];
+   for(const id of validIds){
+    const img=byId.get(id)?.image;
+    if(img&&!previewImages.includes(img))previewImages.push(img);
+    if(previewImages.length>=4)break;
+   }
+   return {...promo,productIds:validIds,status,productCount:validIds.length,previewImages};
+  }).filter(Boolean);
+ }
  function catalog(state){
   const records=copy(state.products),index=new Map(records.map(p=>[p.id,p]));
+  for(const promo of (state.promotions||[])){
+   if(promoStatus(promo)!=='active')continue;
+   for(const pid of (promo.productIds||[])){
+    const product=index.get(pid);
+    if(!product||product.basket)continue;
+    const candidate=copy(product);
+    applyPromotionDiscount(candidate,promo);
+    if(!product.promotionId||candidate.price<product.price)Object.assign(product,candidate);
+   }
+  }
   for(const p of records){
    p.isNew=!p.basket&&Date.now()/1000-p.arrivedAt<30*86400;
    if(!p.basket)continue;
@@ -165,15 +232,28 @@
    });
    return {url};
   }
-  if(path==='export')return {schema:'eclipse-prototype-v1',products:state.products,settings:state.settings};
+  if(path==='export')return {schema:'eclipse-prototype-v1',products:state.products,promotions:state.promotions||[],settings:state.settings};
   if(path==='import'){
-   state.products=validatedBackup(body);save(state);localStorage.removeItem('eclipse-demo-cart-v5');return {count:state.products.length};
+   state.products=validatedBackup(body);
+   state.promotions=Array.isArray(body.promotions)?body.promotions.map(p=>preparePromotion(p,Number(p.id),p,state.products)):[];
+   save(state);localStorage.removeItem('eclipse-demo-cart-v5');return {count:state.products.length};
   }
   if(path==='clear-catalog'&&method==='POST'){
-   state.lastProductId=Math.max(state.lastProductId||0,...state.products.map(p=>p.id));state.products=[];save(state);localStorage.removeItem('eclipse-demo-cart-v5');return {ok:true};
+   state.lastProductId=Math.max(state.lastProductId||0,...state.products.map(p=>p.id));state.products=[];state.promotions=[];save(state);localStorage.removeItem('eclipse-demo-cart-v5');return {ok:true};
   }
   if(path==='reset'){
    localStorage.removeItem(key);localStorage.removeItem('eclipse-demo-cart-v5');sessionStorage.removeItem(sessionKey);return {ok:true};
+  }
+  if(path==='promotions'||path.startsWith('promotions/')){
+   if(path==='promotions'&&method==='GET')return {promotions:enrichedPromotions(state,false)};
+   const id=method==='POST'?Math.max(state.lastPromotionId||0,...(state.promotions||[]).map(p=>p.id))+1:Number(path.split('/')[1]);
+   const old=(state.promotions||[]).find(p=>p.id===id);
+   if(method!=='POST'&&!old)throw Error('Promoção não encontrada.');
+   if(method==='DELETE'){state.promotions=(state.promotions||[]).filter(p=>p.id!==id);save(state);return {ok:true};}
+   const record=preparePromotion(body,id,old,state.products);
+   state.promotions=old?state.promotions.map(p=>p.id===id?record:p):[...(state.promotions||[]),record];
+   state.lastPromotionId=Math.max(state.lastPromotionId||0,id);save(state);
+   return enrichedPromotions(state,false).find(p=>p.id===id);
   }
   if(path==='products'||path.startsWith('products/')){
    const id=method==='POST'?Math.max(state.lastProductId||0,...state.products.map(p=>p.id))+1:Number(path.split('/')[1]);
@@ -196,5 +276,5 @@
   }
   throw Error('Ação indisponível na demonstração.');
  }
- window.ECLIPSE_PUBLIC_ADMIN={request,products:()=>catalog(read()).filter(p=>p.published!==false),settings:()=>read().settings,defaultLogin:()=>read().users.admin==='admin'};
+ window.ECLIPSE_PUBLIC_ADMIN={request,products:()=>catalog(read()).filter(p=>p.published!==false),promotions:()=>enrichedPromotions(read(),true),settings:()=>read().settings,defaultLogin:()=>read().users.admin==='admin'};
 })();

@@ -10,7 +10,7 @@ const logo=publicDemo?(window.ECLIPSE_CONFIG?.assets||'/assets/')+'eclipse-logo-
 const storefront=publicDemo?(window.ECLIPSE_CONFIG?.homeUrl||'/'):'/loja/';
 let bindingController=null;
 let saveAction=null;
-let csrf='',user='',products=[],view='dashboard',search='',page=1,editing=null,variants=[],colorImages={},photoColor='';
+let csrf='',user='',products=[],promotions=[],view='dashboard',search='',page=1,editing=null,variants=[],colorImages={},photoColor='';
 const $=s=>root.querySelector(s);const perPage=20;
 async function api(path,options={}){
  if(publicDemo)return publicDemo.request(path,options);
@@ -24,7 +24,7 @@ function login(message=''){
  $('#login-form').addEventListener('submit',async event=>{event.preventDefault();const button=$('#login-form button');button.disabled=true;try{const session=await api('login',{method:'POST',body:JSON.stringify({username:$('#username').value,password:$('#password').value})});csrf=session.csrf;user=session.username;await start();}catch(error){$('#login-error').textContent=error.message;}finally{if(button.isConnected)button.disabled=false;}});
 }
 function shell(){root.innerHTML=`<div class="layout"><aside class="sidebar"><a class="brand" href="${storefront}" target="_blank" rel="noopener"><img src="${logo}" alt="Eclipse"><small>ADMINISTRAÇÃO</small></a><button id="adm-menu" type="button" aria-controls="adm-navigation" aria-expanded="false">☰ Menu</button><div id="adm-navigation"><nav aria-label="Administração">${[['dashboard','Painel'],['products','Produtos'],['stock','Disponibilidade'],['offers','Ofertas'],['new','Lançamentos'],['settings','Configurações'],['backups','Backups'],...(user==='admin'?[['users','Usuários']]:[])].map(([key,label])=>`<button data-view="${key}" class="${view===key?'active':''}">${label}</button>`).join('')}</nav><div class="sidebar-bottom">${publicDemo?'<button id="reset-demo" class="text-button">Restaurar demonstração</button>':''}<span>Conectado: ${esc(user)}</span><button id="logout" class="text-button">Sair</button></div></div></aside><main class="main"><div class="topline"><span>${publicDemo?'DEMONSTRAÇÃO · ALTERAÇÕES NESTE NAVEGADOR':'PROTÓTIPO LOCAL · ECLIPSE'}</span><a href="${storefront}" target="_blank" rel="noopener">Abrir loja ↗</a></div>${demoNotice}<div id="content"></div></main></div><dialog id="editor" aria-labelledby="editor-title"><form id="product-form"><div class="dialog-header"><h2 id="editor-title">Produto</h2><button type="button" data-close aria-label="Fechar edição">×</button></div><div id="editor-body" class="editor-body"></div><div class="dialog-footer"><p id="editor-error" class="error" role="alert"></p><div><button type="button" class="text-button" data-close>Cancelar</button><button id="save-product" type="submit" class="button lime">Salvar produto ↗</button></div></div></form></dialog><dialog id="confirm-dialog" aria-labelledby="confirm-title"><div class="editor-body"><h2 id="confirm-title"></h2><p id="confirm-text" class="helper"></p><div class="checks"><button id="confirm-no" type="button" class="button outline">Cancelar</button><button id="confirm-yes" type="button" class="button">Confirmar</button></div></div></dialog><div id="toast" role="status"></div>`;bind();}
-async function reload(){products=(await api('products')).products;}
+async function reload(){const [p,pr]=await Promise.all([api('products'),api('promotions').catch(()=>({promotions:[]}))]);products=p.products;promotions=pr.promotions||[];}
 async function start(){view='dashboard';await reload();shell();render();}
 const totalStock=p=>p.variants.filter(v=>v.available).length;
 function render(){root.querySelectorAll('[data-view]').forEach(button=>button.classList.toggle('active',button.dataset.view===view));if(view==='dashboard')dashboard();else if(view==='settings')settings();else if(view==='backups')backups();else if(view==='users'&&user==='admin')renderUsers();else productList();}
@@ -32,7 +32,7 @@ function heading(title,description,add=false){return `<div class="heading"><div>
 function dashboard(){
  const models=products.filter(p=>!p.basket);
  const visible=models.filter(p=>p.published!==false);
- const promotions=visible.filter(p=>p.sale);
+ const activePromotions=promotions.filter(p=>p.status==='active');
  const unavailable=models.filter(p=>!p.available);
  const combos=products.filter(p=>p.basket&&p.sale);
  const recent=models.slice().sort((a,b)=>b.arrivedAt-a.arrivedAt||b.id-a.id).slice(0,4);
@@ -41,7 +41,7 @@ function dashboard(){
   [visible.length,'Produtos publicados','products','published'],
   [models.length-visible.length,'Produtos ocultos','products','hidden'],
   [unavailable.length,'Modelos indisponíveis','stock','unavailable'],
-  [promotions.length,'Promoções publicadas','offers','published'],
+  [activePromotions.length,'Promoções ativas','offers','','promotions'],
   [combos.length,'Combos','offers','','combos'],
   [models.filter(p=>p.isNew).length,'Lançamentos','new'],
   [models.filter(p=>p.available).length,'Modelos disponíveis','stock','available']
@@ -129,11 +129,25 @@ function filtered(){
   ?(a,b)=>a.name.localeCompare(b.name,'pt-BR')
   :(a,b)=>b.arrivedAt-a.arrivedAt||b.id-a.id);
 }
+function formatDateBr(iso){if(!iso)return '';const [y,m,d]=iso.split('-');return y&&m&&d?`${d}/${m}/${y}`:iso;}
+function promoStatusPill(status){
+ if(status==='active')return '<span class="pill">Ativa</span>';
+ if(status==='scheduled')return '<span class="pill gray">Agendada</span>';
+ return '<span class="pill orange">Encerrada</span>';
+}
+function filteredPromotions(){
+ const term=searchKey(search);
+ return promotions.filter(p=>{
+  if(listFilters.status&&p.status!==listFilters.status)return false;
+  return !term||searchKey(p.name).includes(term);
+ }).sort((a,b)=>listFilters.order==='name'?a.name.localeCompare(b.name,'pt-BR'):b.id-a.id);
+}
 function productList(){
+ const isPromoList=view==='offers'&&offerType==='promotions';
  const titles={
   products:['Produtos','Cadastre e edite os produtos do catálogo.'],
   stock:['Disponibilidade','Altere o status de cada cor e tamanho.'],
-  offers:['Ofertas','Gerencie descontos e combos.'],
+  offers:['Ofertas','Gerencie coleções em promoção e combos.'],
   new:['Lançamentos','Produtos cadastrados nos últimos 30 dias.']
  };
  const [title,description]=titles[view];
@@ -141,23 +155,33 @@ function productList(){
   (view==='offers'?`<div class="checks offer-switch" aria-label="Tipo de oferta">
    <button type="button" class="button outline" data-offer-type="promotions" aria-pressed="${offerType==='promotions'}">Promoções</button>
    <button type="button" class="button outline" data-offer-type="combos" aria-pressed="${offerType==='combos'}">Combos</button>
-  </div><div class="checks">${offerType==='combos'?'<button class="button lime" id="add-basket">Criar combo</button>':'<button class="button lime" id="add-offer">Adicionar produto em oferta</button>'}</div>`:'')+`
+  </div><div class="checks">${offerType==='combos'?'<button class="button lime" id="add-basket">Criar combo</button>':'<button class="button lime" id="add-offer">Cadastrar promoção</button>'}</div>`:'')+`
   <div class="catalog-tools">
-   <label class="field">Buscar<input id="admin-search" type="search" placeholder="Nome, marca ou referência" value="${esc(search)}"></label>
-   <label class="field">Departamento<select id="filter-department"><option value="">Todos</option>${Object.entries(D).map(([key,department])=>`<option value="${esc(key)}">${esc(department.label)}</option>`).join('')}</select></label>
-   <label class="field">Status<select id="filter-status"><option value="">Todos</option><option value="published">Publicado</option><option value="hidden">Oculto</option><option value="available">Disponível</option><option value="unavailable">Indisponível</option></select></label>
+   <label class="field">Buscar<input id="admin-search" type="search" placeholder="${isPromoList?'Nome da promoção':'Nome, marca ou referência'}" value="${esc(search)}"></label>
+   ${isPromoList?'':`<label class="field">Departamento<select id="filter-department"><option value="">Todos</option>${Object.entries(D).map(([key,department])=>`<option value="${esc(key)}">${esc(department.label)}</option>`).join('')}</select></label>`}
+   <label class="field">Status<select id="filter-status">${isPromoList?'<option value="">Todas</option><option value="active">Ativa</option><option value="scheduled">Agendada</option><option value="ended">Encerrada</option>':'<option value="">Todos</option><option value="published">Publicado</option><option value="hidden">Oculto</option><option value="available">Disponível</option><option value="unavailable">Indisponível</option>'}</select></label>
    <label class="field">Ordenar<select id="filter-order"><option value="recent">Mais recentes</option><option value="name">Nome A–Z</option></select></label>
   </div>
   <p id="count" class="helper" role="status"></p><div id="product-list"></div>`;
  $('#admin-search').oninput=event=>{search=event.target.value;page=1;renderRows();};
  for(const key of Object.keys(listFilters)){
   const input=$('#filter-'+key);
+  if(!input)continue;
   input.value=listFilters[key];
   input.onchange=()=>{listFilters[key]=input.value;page=1;renderRows();};
  }
  renderRows();
 }
-function renderRows(){const all=filtered(),pages=Math.max(1,Math.ceil(all.length/perPage));page=Math.min(page,pages);$('#count').textContent=all.length+' modelos';const rows=all.slice((page-1)*perPage,page*perPage);$('#product-list').innerHTML=rows.length?`<div class="table-scroll"><table><thead><tr><th>Produto</th><th>Preço</th><th>Disponibilidade</th><th>Situação</th><th>Ações</th></tr></thead><tbody>${rows.map(p=>`<tr><td><div class="product-cell">${p.image?`<img src="${esc(p.image)}" alt="">`:''}<div><span class="name">${esc(p.name)}</span><small>${esc(p.sku)} · ${esc(p.brand)}</small></div></div></td><td>${money(p.price)}${p.sale?`<small>De ${money(p.regular)}</small>`:''}</td><td>${totalStock(p)} de ${p.variants.length} combinações disponíveis</td><td>${p.published===false?'<span class="pill gray">Oculto</span>':p.available?'<span class="pill">Publicado</span>':'<span class="pill orange">Esgotado</span>'}${p.sale?'<small>Oferta</small>':''}${p.isNew?'<small>Lançamento</small>':''}</td><td><div class="row-actions">${view==='products'?`<button data-edit="${p.id}">Editar</button><button data-delete="${p.id}" class="danger">Remover</button>`:view==='stock'?`<button data-stock="${p.id}">Alterar disponibilidade</button>`:view==='offers'?(p.basket?`<button data-edit-combo="${p.id}">Editar combo</button><button data-delete="${p.id}">Remover combo</button>`:`<button data-offer="${p.id}">Editar desconto</button><button data-offer-remove="${p.id}">Retirar oferta</button>`):new Date(p.arrivedAt*1000).toLocaleDateString('pt-BR')}</div></td></tr>`).join('')}</tbody></table></div><div class="pagination"><button id="previous" ${page===1?'disabled':''}>← Anterior</button><span>${page} / ${pages}</span><button id="next" ${page===pages?'disabled':''}>Próxima →</button></div>`:'<div class="empty">Nenhum produto encontrado.</div>';}
+function renderRows(){
+ if(view==='offers'&&offerType==='promotions'){
+  const all=filteredPromotions(),pages=Math.max(1,Math.ceil(all.length/perPage));page=Math.min(page,pages);
+  $('#count').textContent=all.length+(all.length===1?' promoção':' promoções');
+  const rows=all.slice((page-1)*perPage,page*perPage);
+  $('#product-list').innerHTML=rows.length?`<div class="table-scroll"><table><thead><tr><th>Promoção</th><th>Período</th><th>Desconto</th><th>Situação</th><th>Ações</th></tr></thead><tbody>${rows.map(p=>`<tr><td><div class="product-cell">${p.previewImages?.[0]?`<img src="${esc(p.previewImages[0])}" alt="">`:''}<div><span class="name">${esc(p.name)}</span><small>${p.productCount} ${p.productCount===1?'produto':'produtos'} · todos os tamanhos</small></div></div></td><td>${formatDateBr(p.startDate)} até ${formatDateBr(p.endDate)}</td><td>${p.discountMode==='percent'?p.discountValue+'%':money(p.discountValue)}</td><td>${promoStatusPill(p.status)}</td><td><div class="row-actions"><button data-edit-promotion="${p.id}">Editar</button><button data-delete-promotion="${p.id}" class="danger">Remover</button></div></td></tr>`).join('')}</tbody></table></div><div class="pagination"><button id="previous" ${page===1?'disabled':''}>← Anterior</button><span>${page} / ${pages}</span><button id="next" ${page===pages?'disabled':''}>Próxima →</button></div>`:'<div class="empty">Nenhuma promoção cadastrada.</div>';
+  return;
+ }
+ const all=filtered(),pages=Math.max(1,Math.ceil(all.length/perPage));page=Math.min(page,pages);$('#count').textContent=all.length+' modelos';const rows=all.slice((page-1)*perPage,page*perPage);$('#product-list').innerHTML=rows.length?`<div class="table-scroll"><table><thead><tr><th>Produto</th><th>Preço</th><th>Disponibilidade</th><th>Situação</th><th>Ações</th></tr></thead><tbody>${rows.map(p=>`<tr><td><div class="product-cell">${p.image?`<img src="${esc(p.image)}" alt="">`:''}<div><span class="name">${esc(p.name)}</span><small>${esc(p.sku)} · ${esc(p.brand)}</small></div></div></td><td>${money(p.price)}${p.sale?`<small>De ${money(p.regular)}</small>`:''}</td><td>${totalStock(p)} de ${p.variants.length} combinações disponíveis</td><td>${p.published===false?'<span class="pill gray">Oculto</span>':p.available?'<span class="pill">Publicado</span>':'<span class="pill orange">Esgotado</span>'}${p.sale?'<small>Oferta</small>':''}${p.isNew?'<small>Lançamento</small>':''}</td><td><div class="row-actions">${view==='products'?`<button data-edit="${p.id}">Editar</button><button data-delete="${p.id}" class="danger">Remover</button>`:view==='stock'?`<button data-stock="${p.id}">Alterar disponibilidade</button>`:view==='offers'?(p.basket?`<button data-edit-combo="${p.id}">Editar combo</button><button data-delete="${p.id}">Remover combo</button>`:''):new Date(p.arrivedAt*1000).toLocaleDateString('pt-BR')}</div></td></tr>`).join('')}</tbody></table></div><div class="pagination"><button id="previous" ${page===1?'disabled':''}>← Anterior</button><span>${page} / ${pages}</span><button id="next" ${page===pages?'disabled':''}>Próxima →</button></div>`:'<div class="empty">Nenhum produto encontrado.</div>';
+}
 function clone(value){return JSON.parse(JSON.stringify(value));}
 function openEditor(id){saveAction=null;$('#editor').classList.remove('combo-editor');$('#editor-body').onclick=null;editing=products.find(p=>p.id===id)||null;const p=editing||{name:'',sku:'',brand:'',description:'',audiences:['homem'],recommendationAudiences:['homem'],categoryKeys:['masc-camisetas'],modelType:'camiseta',price:0,regular:0,sale:false,isNew:true,published:true,variants:[]};variants=clone(p.variants);colorImages=clone(p.colorImages||{});if(!Object.keys(colorImages).length){const colors=[...new Set(variants.map(v=>v.attributes.Cor))];for(const color of colors){const matching=variants.filter(v=>v.attributes.Cor===color);colorImages[color]=matching[0]?.image===p.image?(p.images||[]).slice(0,5):[...new Set(matching.map(v=>v.image).filter(Boolean))].slice(0,5);}}photoColor=variants[0]?.attributes.Cor||'Preto';$('#editor-title').textContent=editing?'Editar produto':'Novo produto';$('#editor-error').textContent='';$('#editor-body').innerHTML=`<div class="editor-grid"><label class="field full">Nome do produto *<input id="p-name" maxlength="180" required value="${esc(p.name)}"></label><label class="field">Referência / SKU *<input id="p-sku" maxlength="60" required value="${esc(p.sku)}"></label><label class="field">Marca<input id="p-brand" maxlength="100" value="${esc(p.brand)}"></label><label class="field full">Descrição<textarea id="p-description" maxlength="3000">${esc(p.description||'')}</textarea></label></div><h3 class="section-title">Organização e vitrine</h3><div class="checks" id="p-audiences">${Object.entries(D).map(([slug,d])=>`<label><input type="checkbox" value="${slug}" ${p.audiences.includes(slug)?'checked':''}> ${esc(d.label)}</label>`).join('')}</div><div class="editor-grid"><label class="field">Categoria *<select id="p-categories" multiple size="7" required></select></label><div><label class="field">Preferência nos destaques<select id="p-recommendation"><option value="auto">Usar departamentos selecionados</option><option value="homem">Masculino</option><option value="mulher">Feminino</option><option value="both">Masculino e feminino (unissex)</option><option value="infantil">Infantil / juvenil</option></select></label><label class="field">Tipo do modelo<input id="p-type" value="${esc(p.modelType)}" placeholder="tenis, camiseta, camisa, calca…"></label></div></div><div class="checks"><label><input id="p-published" type="checkbox" ${p.published!==false?'checked':''}> Publicado na loja</label></div><h3 class="section-title">Cores e tamanhos</h3><div class="editor-grid"><label class="field">Preço normal padrão (R$)<input id="p-normal" type="number" min="0" step="0.01" value="${p.regular}"></label></div><button type="button" class="text-button" id="apply-prices">Aplicar estes preços a todas as variações</button><div class="bulk color-builder"><label class="field">Cor<input id="bulk-colors" maxlength="100" placeholder="Ex.: Preto"></label><label class="field">Tamanhos desta cor<input id="bulk-sizes" placeholder="Ex.: P, M, G, GG"></label><button type="button" class="button outline" id="generate-variants">Adicionar cor e tamanhos</button></div><p class="helper">Adicione uma cor por vez. Clique em um tamanho para editar seu nome ou preço. Verde indica disponível e cinza indica indisponível.</p><div id="variants"></div><h3 class="section-title">Até 5 fotos por cor</h3><label class="field">Cor das fotos<select id="photo-color"></select></label><div class="photo-tools"><input id="photo-url" type="url" placeholder="https://…" aria-label="URL da foto"><button type="button" class="button outline" id="add-photo-url">Adicionar URL</button><label class="button outline">Enviar fotos<input id="photo-files" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden></label></div><p class="helper">A primeira foto é a capa desta cor. Cada cor aceita até cinco imagens. Use as setas para ordenar.</p><div id="photos" class="photos"></div><div class="checks"><label><input id="p-reviewed" type="checkbox" ${p.pieceImagesReviewed?'checked':''}> Revisei as fotos de moda íntima: mostram somente as peças, sem pessoas.</label></div>`;
  const rec=p.recommendationAudiences||p.audiences;$('#p-recommendation').value=rec.length===2&&rec.includes('homem')&&rec.includes('mulher')?'both':rec.length===1?rec[0]:'auto';renderCategoryOptions(p.categoryKeys);renderVariants();renderPhotoColors();groupProductFields();$('#editor').showModal();}
@@ -263,48 +287,96 @@ function openStock(id) {
   group.querySelector('[data-stock-count]').textContent=available+'/'+all+' disponíveis';
  };
 }
-function openOffer(id) {
- const product=products.find(p=>p.id===id);
- const options=products.filter(p=>!p.basket).map(p=>`<option value="${p.id}">${esc(p.name+' · '+p.sku)}</option>`).join('');
- actionDialog(product?.basket?'Preço do combo':'Configurar oferta',`
-  ${product?`<p>${esc(product.name)} · Preço normal a partir de ${money(product.regular)}</p>`:`<label class="field">Produto<select id="offer-product" required><option value="">Selecione um produto</option>${options}</select></label>`}
-  ${product?.basket?'':`<label class="field">Tipo de desconto<select id="offer-mode"><option value="percent">Porcentagem (%)</option><option value="amount">Valor em reais (R$)</option></select></label>`}
-  <label class="field">${product?.basket?'Preço do combo (R$)':'Desconto'}<input id="offer-value" type="number" min="0.01" step="0.01" required value="${product?.basket?product.price:''}"></label><p class="notice" id="offer-preview" role="status"></p>`,()=>{
-   const value=Number($('#offer-value').value);
-   return patchProduct(id||Number($('#offer-product').value),{offer:{
-    mode:product?.basket?'amount':$('#offer-mode').value,
-    value:product?.basket?Math.round((product.regular-value)*100)/100:value
-   }});
- });
- const preview=()=>{
-  const item=product||products.find(p=>p.id===Number($('#offer-product')?.value));
-  const input=$('#offer-value');
-  const value=Number(input.value);
-  const result=$('#offer-preview');
-  if(!item){result.textContent='Selecione um produto para simular o desconto.';return;}
-  if(!input.value||value<=0){
-   result.textContent=item.sale?'Preço com desconto atual: '+money(item.price):'Preço normal a partir de '+money(item.regular);
-   return;
-  }
-  const mode=$('#offer-mode')?.value;
-  const amounts=item.variants.map(v=>product?.basket?value:mode==='percent'?v.regular*(1-value/100):v.regular-value);
-  const min=Math.min(...amounts),max=Math.max(...amounts);
-  if(min<0){result.textContent='O desconto excede o preço normal de uma combinação.';return;}
-  result.textContent='Preço após o desconto: '+money(min)+(max-min>.005?' a '+money(max):'');
+function openPromotion(id=0) {
+ const promo=promotions.find(p=>p.id===id);
+ const selected=new Set(promo?.productIds||[]);
+ const eligible=products.filter(p=>!p.basket&&(selected.has(p.id)||p.published!==false));
+ const missing=[...selected].filter(pid=>!eligible.some(p=>p.id===pid));
+ for(const pid of missing)selected.delete(pid);
+ const normalize=value=>value.normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase();
+ const today=new Date().toLocaleDateString('en-CA');
+
+ actionDialog(promo?'Editar promoção':'Cadastrar promoção',`
+  <div class="editor-grid">
+   <label class="field full">Nome da promoção<input id="promo-name" required maxlength="180" value="${esc(promo?.name||'')}"></label>
+   <label class="field">Data de início<input id="promo-start" type="date" required value="${esc(promo?.startDate||today)}"></label>
+   <label class="field">Data final<input id="promo-end" type="date" required value="${esc(promo?.endDate||today)}"></label>
+   <label class="field">Tipo de desconto<select id="promo-mode"><option value="percent" ${promo?.discountMode==='amount'?'':'selected'}>Porcentagem (%)</option><option value="amount" ${promo?.discountMode==='amount'?'selected':''}>Valor em reais (R$)</option></select></label>
+   <label class="field">Desconto<input id="promo-value" type="number" min="0.01" step="0.01" required value="${promo?.discountValue??''}"></label>
+  </div>
+  <p class="helper">Todos os tamanhos disponíveis de cada produto selecionado são incluídos automaticamente.</p>
+  ${missing.length?'<p class="notice">Um ou mais produtos foram removidos do catálogo. Revise a seleção antes de salvar.</p>':''}
+  <div class="combo-workspace">
+   <section aria-labelledby="promo-count">
+    <h3 id="promo-count" role="status"></h3>
+    <div id="promo-selected"></div>
+   </section>
+   <section aria-label="Catálogo">
+    <label class="field">Buscar produtos<input id="promo-search" type="search" placeholder="Nome, marca ou referência"></label>
+    <div id="promo-list" class="basket-list" aria-label="Produtos disponíveis"></div>
+   </section>
+  </div>`,()=>{
+   const name=$('#promo-name').value.trim();
+   const startDate=$('#promo-start').value;
+   const endDate=$('#promo-end').value;
+   const discountMode=$('#promo-mode').value;
+   const discountValue=Number($('#promo-value').value);
+   if(!name)throw Error('Informe o nome da promoção.');
+   if(!startDate||!endDate)throw Error('Informe as datas de início e fim.');
+   if(endDate<startDate)throw Error('A data final deve ser igual ou posterior à data de início.');
+   if(!(discountValue>0)||(discountMode==='percent'&&discountValue>100))throw Error('Informe um desconto válido.');
+   if(!selected.size)throw Error('Selecione pelo menos um produto para a promoção.');
+   const payload={name,startDate,endDate,discountMode,discountValue,productIds:[...selected]};
+   return promo?api('promotions/'+promo.id,{method:'PUT',body:JSON.stringify(payload)}):api('promotions',{method:'POST',body:JSON.stringify(payload)});
+ },'combo');
+
+ const marked=$('#promo-selected'),list=$('#promo-list'),searchBox=$('#promo-search');
+ const row=product=>{
+  const checked=selected.has(product.id);
+  return `<div class="basket-row">
+   <div class="basket-line">
+    <label class="basket-check"><input type="checkbox" data-promo-product="${product.id}" ${checked?'checked':''}>
+     <span>${esc(product.name)}<small>${esc(product.sku)} · ${money(product.regular)}</small></span>
+    </label>
+   </div>
+  </div>`;
  };
- for(const id of ['#offer-value','#offer-mode','#offer-product']){
-  $(id)?.addEventListener('input',preview);
-  $(id)?.addEventListener('change',preview);
- }
- preview();
+ const drawAvailable=()=>{
+  const term=normalize(searchBox.value.trim());
+  const scroll=list.scrollTop;
+  list.innerHTML=eligible.filter(p=>!selected.has(p.id)&&p.published!==false&&normalize(p.name+' '+p.brand+' '+p.sku).includes(term))
+   .map(row).join('')||'<p class="helper">Nenhum produto encontrado.</p>';
+  list.scrollTop=scroll;
+ };
+ const drawMarked=()=>{
+  $('#promo-count').textContent='Na promoção ('+selected.size+')';
+  marked.innerHTML=eligible.filter(p=>selected.has(p.id)).map(row).join('')
+   ||'<p class="helper">Selecione os produtos da promoção.</p>';
+ };
+ const change=event=>{
+  const pid=Number(event.target.dataset.promoProduct);
+  if(!pid)return;
+  if(event.target.checked)selected.add(pid);
+  else selected.delete(pid);
+  $('#editor-error').textContent='';
+  drawMarked();
+  drawAvailable();
+ };
+ list.onchange=marked.onchange=change;
+ searchBox.oninput=drawAvailable;
+ drawMarked();
+ drawAvailable();
 }
 function openBasket(id=0) {
  const combo=products.find(p=>p.id===id&&p.basket);
- const selected=new Map((combo?.basket||[]).map(item=>[item.id,new Set(item.variantIds||[item.variantId])]));
+ const selected=new Map((combo?.basket||[]).map(item=>{
+  const prod=products.find(p=>p.id===item.id);
+  const avail=(prod?.variants||[]).filter(v=>v.available).map(v=>v.id);
+  return [item.id,new Set(avail.length?avail:(item.variantIds||[item.variantId]))];
+ }));
  const eligible=products.filter(p=>!p.basket&&(selected.has(p.id)||(p.published!==false&&p.variants.some(v=>v.available))));
  const missing=[...selected.keys()].filter(id=>!eligible.some(p=>p.id===id));
  for(const id of missing)selected.delete(id);
- let active=null;
  const normalize=value=>value.normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase();
 
  actionDialog(combo?'Editar combo':'Criar combo',`
@@ -312,6 +384,7 @@ function openBasket(id=0) {
    <label class="field">Nome do combo<input id="basket-name" required maxlength="180" value="${esc(combo?.name||'')}"></label>
    <label class="field">Preço (R$)<input id="basket-price" required type="number" min="0.01" step="0.01" value="${combo?.price??''}"></label>
   </div>
+  <p class="helper">Todos os tamanhos disponíveis de cada produto selecionado são incluídos automaticamente.</p>
   ${missing.length?'<p class="notice">Um ou mais produtos foram removidos do catálogo. Revise a seleção antes de salvar.</p>':''}
   <div class="combo-workspace">
    <section aria-labelledby="basket-count">
@@ -324,7 +397,6 @@ function openBasket(id=0) {
    </section>
   </div>`,()=>{
    if(selected.size<2) throw Error('Marque pelo menos dois produtos.');
-   if([...selected.values()].some(ids=>!ids.size)) throw Error('Marque pelo menos um tamanho para cada produto do combo.');
    const payload={
     name:$('#basket-name').value,price:Number($('#basket-price').value),
     basket:[...selected].map(([id,ids])=>({id,variantIds:[...ids]}))
@@ -332,43 +404,16 @@ function openBasket(id=0) {
    return combo?patchProduct(combo.id,payload):api('products',{method:'POST',body:JSON.stringify(payload)});
  },'combo');
 
- for(const product of eligible){
-  const chosen=selected.get(product.id);
-  if(chosen)for(const variantId of chosen)if(!product.variants.some(v=>v.id===variantId))chosen.delete(variantId);
- }
  const marked=$('#basket-selected'),list=$('#basket-list'),searchBox=$('#basket-search');
  const row=product=>{
-  const {id,name,variants}=product;
+  const {id,name}=product;
   const checked=selected.has(id);
-  const chosen=selected.get(id);
-  const available=variants.filter(v=>v.available||chosen?.has(v.id)).sort((a,b)=>a.attributes.Cor.localeCompare(b.attributes.Cor,'pt-BR')||bySize(a,b));
-  const choosing=checked&&active===id;
-  const colors=new Map();
-  for(const variant of available){
-   const color=variant.attributes.Cor;
-   if(!colors.has(color))colors.set(color,[]);
-   colors.get(color).push(variant);
-  }
-  const inStock=available.filter(v=>v.available);
-  const allChecked=inStock.length>0&&inStock.every(v=>chosen?.has(v.id));
   return `<div class="basket-row">
    <div class="basket-line">
     <label class="basket-check"><input type="checkbox" data-basket-product="${id}" ${checked?'checked':''}>
-     <span>${esc(name)}${!checked?`<small>${esc(product.sku)}</small>`:''}</span>
+     <span>${esc(name)}<small>${esc(product.sku)} · todos os tamanhos</small></span>
     </label>
-    ${checked&&!choosing?`<button class="text-button basket-change" type="button" data-basket-edit="${id}" aria-label="Alterar cor e tamanho de ${esc(name)}">${chosen.size===available.length?'Todos os tamanhos':chosen.size?chosen.size+' opções':'Escolher tamanhos'}</button>`:''}
    </div>
-   ${choosing?`<fieldset class="basket-variant basket-sizes">
-    <legend>Tamanhos que o cliente poderá escolher</legend>
-    <label><input type="checkbox" data-basket-all="${id}" ${allChecked?'checked':''} ${inStock.length?'':'disabled'}> Todos disponíveis</label>
-    ${[...colors].map(([color,items])=>`<div class="combo-color">
-     <strong>${esc(color)}</strong>
-     <div class="stock-sizes" role="group" aria-label="Tamanhos da cor ${esc(color)}">
-      ${items.map(v=>`<button type="button" class="stock-size" data-basket-variant="${id}" data-variant-id="${v.id}" data-in-stock="${v.available}" aria-pressed="${chosen.has(v.id)}" aria-label="Tamanho ${esc(v.attributes.Tamanho)}${v.available?'':' indisponível'}">${esc(v.attributes.Tamanho)}${v.available?'':' · indisponível'}</button>`).join('')}
-     </div>
-    </div>`).join('')}
-    <button type="button" class="text-button" data-basket-done="${id}">Concluir seleção</button>
-   </fieldset>`:''}
   </div>`;
  };
  const drawAvailable=()=>{
@@ -385,16 +430,6 @@ function openBasket(id=0) {
  };
  const change=event=>{
   const input=event.target;
-  if(input.dataset.basketAll){
-   const chosen=selected.get(Number(input.dataset.basketAll));
-   for(const button of input.closest('fieldset').querySelectorAll('[data-in-stock=true]')){
-    const id=Number(button.dataset.variantId);
-    if(input.checked)chosen.add(id);else chosen.delete(id);
-    button.setAttribute('aria-pressed',String(input.checked));
-   }
-   $('#editor-error').textContent='';
-   return;
-  }
   const id=Number(input.dataset.basketProduct);
   if(!id)return;
   if(input.checked){
@@ -404,48 +439,15 @@ function openBasket(id=0) {
     return;
    }
    const available=eligible.find(p=>p.id===id).variants.filter(v=>v.available);
-   selected.set(id,new Set(available.length===1?[available[0].id]:[]));
-   active=id;
+   selected.set(id,new Set(available.map(v=>v.id)));
   }else{
    selected.delete(id);
-   if(active===id)active=null;
   }
   $('#editor-error').textContent='';
   drawMarked();
   drawAvailable();
-  const target=input.checked?marked.querySelector(`[data-basket-variant="${id}"]`):list.querySelector(`[data-basket-product="${id}"]`);
-  (target||searchBox).focus();
  };
  list.onchange=marked.onchange=change;
- marked.onclick=event=>{
-  const size=event.target.closest('[data-basket-variant]');
-  if(size){
-   const chosen=selected.get(Number(size.dataset.basketVariant));
-   const id=Number(size.dataset.variantId);
-   if(chosen.has(id)){
-    chosen.delete(id);
-    if(size.dataset.inStock!=='true')size.disabled=true;
-   }else if(size.dataset.inStock==='true')chosen.add(id);
-   size.setAttribute('aria-pressed',String(chosen.has(id)));
-   const field=size.closest('fieldset');
-   const inStock=[...field.querySelectorAll('[data-in-stock=true]')];
-   field.querySelector('[data-basket-all]').checked=inStock.length>0&&inStock.every(button=>chosen.has(Number(button.dataset.variantId)));
-   $('#editor-error').textContent='';
-   return;
-  }
-  const done=event.target.closest('[data-basket-done]');
-  if(done){
-   active=null;
-   drawMarked();
-   marked.querySelector(`[data-basket-edit="${done.dataset.basketDone}"]`).focus();
-   return;
-  }
-  const button=event.target.closest('[data-basket-edit]');
-  if(!button)return;
-  active=Number(button.dataset.basketEdit);
-  drawMarked();
-  (marked.querySelector('[data-basket-variant]')||marked.querySelector('[data-basket-done]')).focus();
- };
  searchBox.oninput=drawAvailable;
  drawMarked();
  drawAvailable();
@@ -475,12 +477,10 @@ function bind(){bindingController?.abort();bindingController=new AbortController
  }
 }
 if(button.dataset.stock)openStock(Number(button.dataset.stock));
-if(button.id==='add-offer'||button.dataset.offer)openOffer(Number(button.dataset.offer)||0);
+if(button.id==='add-offer'||button.dataset.editPromotion)openPromotion(Number(button.dataset.editPromotion)||0);
 if(button.dataset.offerType){offerType=button.dataset.offerType;page=1;search='';listFilters.department='';listFilters.status='';render();root.querySelector('[data-offer-type][aria-pressed=true]').focus();}
 if(button.id==='add-basket'||button.dataset.editCombo)openBasket(Number(button.dataset.editCombo)||0);
-if(button.dataset.offerRemove&&await confirmAction('Retirar oferta?','O produto voltará ao preço normal.')){
- try{await patchProduct(Number(button.dataset.offerRemove),{offer:{mode:'remove'}});await reload();render();toast('Oferta retirada.');}catch(error){toast(error.message);}
-}if(button.dataset.delete){const product=products.find(p=>p.id===Number(button.dataset.delete));if(await confirmAction('Remover produto?',product.name+' será removido do catálogo.')){try{await api('products/'+product.id,{method:'DELETE'});await reload();render();toast('Produto removido.');}catch(error){toast(error.message);}}}if(button.id==='previous'){page--;renderRows();}if(button.id==='next'){page++;renderRows();}if(button.hasAttribute('data-remove-variant')){variants.splice(Number(button.dataset.removeVariant),1);renderVariants();renderPhotoColors();}if(button.hasAttribute('data-remove-color')){
+if(button.dataset.deletePromotion){const promo=promotions.find(p=>p.id===Number(button.dataset.deletePromotion));if(promo&&await confirmAction('Remover promoção?',promo.name+' será removida.')){try{await api('promotions/'+promo.id,{method:'DELETE'});await reload();render();toast('Promoção removida.');}catch(error){toast(error.message);}}}if(button.dataset.delete){const product=products.find(p=>p.id===Number(button.dataset.delete));if(await confirmAction('Remover produto?',product.name+' será removido do catálogo.')){try{await api('products/'+product.id,{method:'DELETE'});await reload();render();toast('Produto removido.');}catch(error){toast(error.message);}}}if(button.id==='previous'){page--;renderRows();}if(button.id==='next'){page++;renderRows();}if(button.hasAttribute('data-remove-variant')){variants.splice(Number(button.dataset.removeVariant),1);renderVariants();renderPhotoColors();}if(button.hasAttribute('data-remove-color')){
  const color=button.dataset.removeColor;
  const count=variants.filter(v=>v.attributes.Cor===color).length;
  if(await confirmAction('Remover cor?', 'A cor '+color+' será removida deste produto com seus '+count+' tamanho(s) e suas fotos ao salvar.')){
