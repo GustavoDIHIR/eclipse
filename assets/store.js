@@ -641,19 +641,25 @@
   root.addEventListener('keydown',event=>{if(event.key==='Escape')root.querySelectorAll('.ec-nav-dept').forEach(d=>d.open=false);});
   const departmentMenus=[...root.querySelectorAll('.ec-nav-dept')];
   const hoverMenu=window.matchMedia('(hover: hover) and (pointer: fine)');
+  const menuTimers=new WeakMap();
+  const clearMenuTimer=menu=>{clearTimeout(menuTimers.get(menu));menuTimers.delete(menu);};
   for(const menu of departmentMenus){
     menu.addEventListener('pointerenter',event=>{
       if(!hoverMenu.matches||event.pointerType!=='mouse')return;
-      departmentMenus.forEach(other=>other.open=other===menu);
+      clearMenuTimer(menu);
+      departmentMenus.forEach(other=>{if(other!==menu){clearMenuTimer(other);other.open=false;}});
+      menu.open=true;
     });
     menu.addEventListener('pointerleave',event=>{
-      if(hoverMenu.matches&&event.pointerType==='mouse'&&!menu.contains(document.activeElement))menu.open=false;
+      if(!hoverMenu.matches||event.pointerType!=='mouse'||menu.contains(document.activeElement))return;
+      clearMenuTimer(menu);
+      menuTimers.set(menu,setTimeout(()=>{if(!menu.matches(':hover')&&!menu.contains(document.activeElement))menu.open=false;},180));
     });
     menu.querySelector('summary').addEventListener('click',event=>{
       if(hoverMenu.matches&&event.detail>0&&menu.open)event.preventDefault();
-      departmentMenus.filter(other=>other!==menu).forEach(other=>other.open=false);
+      departmentMenus.filter(other=>other!==menu).forEach(other=>{clearMenuTimer(other);other.open=false;});
     });
-    menu.querySelectorAll('a').forEach(link=>link.addEventListener('click',()=>menu.open=false));
+    menu.querySelectorAll('a').forEach(link=>link.addEventListener('click',()=>{clearMenuTimer(menu);menu.open=false;}));
   }
   root.addEventListener('keydown',event=>{
     if(event.key!=='Escape')return;
