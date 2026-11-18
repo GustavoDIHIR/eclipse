@@ -354,3 +354,10 @@
  #eclipse-store .ec-promo-edge{display:none}
  #eclipse-store .ec-promo-row-track{grid-auto-columns:minmax(108px,31vw);gap:8px;padding-bottom:10px}
 }
+#eclipse-store #ec-grid:not(.ec-promo-rows){grid-template-columns:repeat(6,minmax(0,1fr));gap:22px 12px}
+@media(max-width:1050px){
+ #eclipse-store #ec-grid:not(.ec-promo-rows){grid-template-columns:repeat(4,minmax(0,1fr));gap:20px 12px}
+}
+@media(max-width:760px){
+ #eclipse-store #ec-grid:not(.ec-promo-rows){grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 8px}
+}
