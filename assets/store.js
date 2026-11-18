@@ -451,7 +451,7 @@
     const main=$('#ec-main-photo');
     const useInstant=instant||reduceMotion.matches;
     scrollLockUntil=Date.now()+(useInstant?60:420);
-    if(main&&main.clientWidth)main.scrollTo({left:photoIndex*main.clientWidth,behavior:useInstant?'instant':'smooth'});
+    if(main&&main.clientWidth)main.scrollTo({left:photoIndex*main.clientWidth,behavior:useInstant?'auto':'smooth'});
     syncPhotoThumbs();
   }
   function renderProductPhotos(color){
@@ -465,15 +465,13 @@
     if(images.length){
       main.innerHTML=images.map(url=>`<div class="ec-detail-slide">${imageFor({...current,image:url}).replace('loading="lazy"','loading="eager"')}</div>`).join('');
       let scrollTimer;
-      main.onscroll=()=>{
-        if(Date.now()<scrollLockUntil)return;
-        clearTimeout(scrollTimer);
-        scrollTimer=setTimeout(()=>{
-          if(!main.clientWidth||Date.now()<scrollLockUntil)return;
-          const idx=Math.max(0,Math.min(images.length-1,Math.round(main.scrollLeft/main.clientWidth)));
-          if(idx!==photoIndex){photoIndex=idx;syncPhotoThumbs();}
-        },120);
+      const syncFromScroll=()=>{
+        if(!main.clientWidth||Date.now()<scrollLockUntil)return;
+        const idx=Math.max(0,Math.min(images.length-1,Math.round(main.scrollLeft/main.clientWidth)));
+        if(idx!==photoIndex){photoIndex=idx;syncPhotoThumbs();}
       };
+      main.onscroll=()=>{clearTimeout(scrollTimer);scrollTimer=setTimeout(syncFromScroll,120);};
+      main.onscrollend=syncFromScroll;
       if(images.length>1){
         let startX=0,startScroll=0,dragging=false;
         main.onpointerdown=event=>{
